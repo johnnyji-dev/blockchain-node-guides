@@ -1,0 +1,24 @@
+# Docker 빌드 시 제외할 파일들
+
+# 데이터 디렉토리
+data/
+*.dat
+*.log
+
+# Git 관련
+.git/
+.gitignore
+
+# 문서 파일
+*.md
+!docker-readme.md
+
+# 설정 파일 (예제는 포함)
+bitcoin.conf
+
+# 기타
+.DS_Store
+*.swp
+*.swo
+*~
+

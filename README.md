@@ -2,6 +2,9 @@
 
 블록체인 네트워크의 노드 운영에 대한 종합 가이드 및 정보 정리 프로젝트입니다.
 
+**Languages**: [한국어](#한국어) | [English](#english)
+
+<a name="한국어"></a>
 ## 1. 블록체인 노드가 하는 역할
 
 블록체인 노드는 블록체인 네트워크의 핵심 구성 요소로, 다음과 같은 중요한 역할을 수행합니다:
@@ -190,3 +193,201 @@ blockchain-node-guides/
 ## 문의
 
 프로젝트에 대한 문의사항이나 제안사항이 있으시면 이슈를 등록해 주세요.
+
+---
+
+<a name="english"></a>
+# English
+
+## Blockchain Node Guide
+
+A comprehensive guide and information repository project for operating nodes in blockchain networks.
+
+## 1. Roles of Blockchain Nodes
+
+Blockchain nodes are core components of blockchain networks and perform the following important roles:
+
+### Data Storage and Synchronization
+- **Blockchain Data Storage**: Stores all blocks and transactions of the network locally to maintain a complete copy of the blockchain
+- **Network Synchronization**: Continuously communicates with other nodes to synchronize the latest blockchain state
+- **Data Validation**: Cryptographically validates the validity of received blocks and transactions
+
+### Network Maintenance and Participation
+- **Peer Connections**: Forms P2P networks with other nodes to maintain a distributed network
+- **Data Propagation**: Broadcasts new blocks and transactions to other nodes in the network
+- **Consensus Algorithm Execution**: Participates in block creation or performs validation according to the network's consensus rules
+
+### Service Provision
+- **RPC API Provision**: Provides RPC interfaces for external applications to access blockchain data
+- **Transaction Submission**: Provides interfaces for users to submit transactions and propagate them to the network
+- **Wallet Functionality**: Some nodes have built-in wallet functionality to manage user assets and sign transactions
+
+## 2. Why Blockchain Nodes Are Needed
+
+### Decentralization Guarantee
+- **Preventing Centralization**: Numerous independent nodes are needed to realize decentralization, a core value of blockchain
+- **Eliminating Single Points of Failure**: Not depending on a single server improves network stability and availability
+- **Censorship Resistance**: The more nodes exist in the network, the more resistant it becomes to external censorship or control
+
+### Network Security
+- **Distributed Validation**: Network security is strengthened as many nodes independently validate blocks
+- **Attack Resistance**: Sufficient nodes are needed to defend against malicious attacks such as 51% attacks
+- **Data Integrity**: Ensures the integrity of data stored across multiple nodes
+
+### Development and Operational Necessity
+- **Independent Validation**: Can directly validate blockchain data without depending on third-party services
+- **Privacy Protection**: Operating your own node prevents exposing transaction information to external parties
+- **Performance and Stability**: Can provide faster and more stable services through your own node
+- **Cost Reduction**: Can reduce costs of using external RPC services
+
+## 3. Types of Blockchain Nodes
+
+### Full Node
+- **Characteristics**: Stores and validates all blocks and transaction data of the blockchain
+- **Advantages**: Complete independence and security, significant contribution to the network
+- **Disadvantages**: High storage space and network bandwidth requirements, long initial synchronization time
+- **Use Cases**: Network security enhancement, complete validation, development and operations
+
+### Archive Node
+- **Characteristics**: All features of a full node + stores all historical state information
+- **Advantages**: Can query all past states
+- **Disadvantages**: Requires very large storage space (several TB or more)
+- **Use Cases**: Block explorers, indexing services, complex queries
+
+### Light Node / SPV Node
+- **Characteristics**: Stores only block headers and depends on full nodes
+- **Advantages**: Low storage space and fast synchronization
+- **Disadvantages**: Cannot perform independent validation, depends on other nodes
+- **Use Cases**: Mobile wallets, simple transaction verification
+
+### Validator Node
+- **Characteristics**: Participates in consensus algorithms to create new blocks (PoS, DPoS, etc.)
+- **Advantages**: Can earn block creation rewards, directly contributes to the network
+- **Disadvantages**: High hardware requirements, requires staking funds (for PoS)
+- **Use Cases**: Block creation, network consensus participation
+
+### RPC Node (Remote Procedure Call Node)
+- **Characteristics**: Node that provides RPC interfaces to external applications
+- **Advantages**: Developer-friendly, provides various APIs
+- **Disadvantages**: Requires additional security considerations
+- **Use Cases**: DApp development, blockchain data queries
+
+### Bootstrap Node
+- **Characteristics**: Provides initial connection information to nodes first accessing the network
+- **Advantages**: Reduces network entry barriers
+- **Disadvantages**: Must remain online at all times
+- **Use Cases**: Network entry point provision
+
+## 4. Project Goals
+
+This project aims to provide practical guides for installing, operating, and managing nodes for various blockchain networks.
+
+### 4.1. Blockchain Node Installation and Configuration Methods
+
+Provides detailed installation and configuration guides for each blockchain network:
+
+- **Hardware Requirements**: CPU, RAM, disk, network bandwidth
+- **Software Requirements**: Operating system, essential packages, dependencies
+- **Step-by-Step Installation Procedures**: Binary installation, source builds, package manager usage
+- **Configuration File Setup**: Network settings, RPC settings, P2P settings
+- **Initial Synchronization Guide**: Fast synchronization methods, snapshot utilization
+- **Service Configuration**: systemd service setup, automatic restart configuration
+- **Security Settings**: Firewall configuration, RPC access restrictions, SSL/TLS settings
+
+Each blockchain is managed systematically with separate directories and documents.
+
+### 4.2. Blockchain Node Version Update Documentation
+
+Systematically organizes update history of blockchain node software:
+
+- **Update History**: Version-specific changes, release notes
+- **Major Feature Additions**: New features and improvements
+- **Bug Fixes**: Resolved issues and security patches
+- **Backward Compatibility**: Compatibility information with previous versions
+- **Migration Guide**: Procedures and precautions needed for updates
+- **Performance Improvements**: Optimization and performance enhancement records
+
+Organized so that node operators can easily reference and apply updates.
+
+### 4.3. Blockchain Node Issue Documentation
+
+Organizes common problems and solutions encountered during node operation:
+
+- **Common Errors**: Frequently occurring error messages and solutions
+- **Synchronization Issues**: Synchronization failures, slow synchronization, fork occurrences, etc.
+- **Performance Issues**: High CPU/memory usage, disk I/O bottlenecks
+- **Network Problems**: Peer connection failures, port issues, firewall settings
+- **Data Corruption**: Checksum errors, database recovery
+- **Post-Update Issues**: Problems occurring after version updates
+- **Hardware-Related**: Insufficient disk space, memory shortage
+
+Each issue is systematically documented with symptoms, causes, and solutions.
+
+### 4.4. Target Blockchains
+
+**Starting with top 50 mainnets by CMC, gradually expanding**
+
+The initial goal is to provide guides for the top 50 mainnet blockchains by market capitalization on CoinMarketCap (CMC). We plan to gradually expand the target blockchains to support more networks.
+
+#### Priority Criteria
+- **Market Capitalization**: Market cap ranking on CMC
+- **Activity**: Network activity and transaction volume
+- **Community**: Size of developer and user communities
+- **Ecosystem**: Maturity of DApp and service ecosystems
+
+#### Planned Blockchains (Examples)
+- Bitcoin (BTC)
+- Ethereum (ETH)
+- Binance Smart Chain (BSC)
+- Solana (SOL)
+- Cardano (ADA)
+- Polkadot (DOT)
+- Avalanche (AVAX)
+- Polygon (MATIC)
+- Cosmos (ATOM)
+- ... (Top 50)
+
+For each blockchain, the following information is provided:
+- Node installation guide (`/chains/[chain-name]/installation.md`)
+- Configuration guide (`/chains/[chain-name]/configuration.md`)
+- Update logs (`/chains/[chain-name]/updates/`)
+- Issues and troubleshooting (`/chains/[chain-name]/troubleshooting.md`)
+
+## Project Structure
+
+```
+blockchain-node-guides/
+├── README.md
+├── chains/
+│   ├── bitcoin/
+│   │   ├── installation.md
+│   │   ├── configuration.md
+│   │   ├── updates/
+│   │   └── troubleshooting.md
+│   ├── ethereum/
+│   │   ├── installation.md
+│   │   ├── configuration.md
+│   │   ├── updates/
+│   │   └── troubleshooting.md
+│   └── ...
+└── common/
+    ├── hardware-requirements.md
+    └── security-best-practices.md
+```
+
+## Contributing
+
+This project welcomes community contributions:
+
+1. Adding new blockchain guides
+2. Improving and updating existing guides
+3. Issue reporting and bug fixes
+4. Documentation translation and improvements
+
+## License
+
+This project is distributed under the MIT License.
+
+## Contact
+
+If you have any questions or suggestions about the project, please open an issue.

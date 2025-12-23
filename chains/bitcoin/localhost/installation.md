@@ -40,6 +40,8 @@ Bitcoin Core 노드 설치 및 초기 설정에 대한 가이드입니다.
 ```bash
 # 최신 버전 다운로드
 wget https://bitcoincore.org/bin/bitcoin-core-[버전]/bitcoin-[버전]-x86_64-linux-gnu.tar.gz
+# 예시: Bitcoin Core 30.0
+# wget https://bitcoincore.org/bin/bitcoin-core-30.0/bitcoin-30.0-x86_64-linux-gnu.tar.gz
 
 # 압축 해제
 tar -xzf bitcoin-[버전]-x86_64-linux-gnu.tar.gz
@@ -49,9 +51,40 @@ sudo install -m 0755 -o root -g root -t /usr/local/bin bitcoin-[버전]/bin/*
 ```
 
 #### macOS
+
+**방법 A: Homebrew 사용 (권장)**
 ```bash
 # Homebrew를 통한 설치
 brew install bitcoin
+```
+
+**방법 B: 바이너리 다운로드**
+```bash
+# 최신 버전 다운로드 (macOS용)
+# 예시: Bitcoin Core 30.0
+curl -O https://bitcoincore.org/bin/bitcoin-core-30.0/bitcoin-30.0-osx64.tar.gz
+
+# 또는 wget 사용
+# wget https://bitcoincore.org/bin/bitcoin-core-30.0/bitcoin-30.0-osx64.tar.gz
+
+# 압축 해제
+tar -xzf bitcoin-30.0-osx64.tar.gz
+
+# 설치 (macOS의 install 명령어는 Linux와 다름)
+# 방법 1: cp와 chmod 사용
+sudo cp bitcoin-30.0/bin/* /usr/local/bin/
+sudo chmod +x /usr/local/bin/bitcoin* /usr/local/bin/test_bitcoin
+
+# 방법 2: 각 파일 개별 복사
+sudo cp bitcoin-30.0/bin/bitcoind /usr/local/bin/
+sudo cp bitcoin-30.0/bin/bitcoin-cli /usr/local/bin/
+sudo cp bitcoin-30.0/bin/bitcoin-tx /usr/local/bin/
+sudo cp bitcoin-30.0/bin/bitcoin-wallet /usr/local/bin/
+sudo chmod +x /usr/local/bin/bitcoin*
+
+# 설치 확인
+bitcoind --version
+bitcoin-cli --version
 ```
 
 ### 방법 2: 소스 코드에서 빌드

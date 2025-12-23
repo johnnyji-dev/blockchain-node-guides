@@ -18,7 +18,77 @@ Bitcoin Core의 설정 파일은 다음 위치에 있습니다:
 - **macOS**: `~/Library/Application Support/Bitcoin/bitcoin.conf`
 - **Windows**: `%APPDATA%\Bitcoin\bitcoin.conf`
 
-## 기본 설정
+### 설정 파일 생성 방법
+
+#### 방법 1: 예제 파일 사용 (권장)
+
+```bash
+# Linux/macOS
+cd ~/.bitcoin
+# 또는
+cd ~/Library/Application\ Support/Bitcoin
+
+# 예제 파일 복사
+cp /path/to/bitcoin.conf.example bitcoin.conf
+
+# 설정 파일 편집 (RPC 비밀번호 필수 변경!)
+nano bitcoin.conf
+# 또는
+vim bitcoin.conf
+```
+
+#### 방법 2: 직접 생성
+
+```bash
+# Linux
+mkdir -p ~/.bitcoin
+nano ~/.bitcoin/bitcoin.conf
+
+# macOS
+mkdir -p ~/Library/Application\ Support/Bitcoin
+nano ~/Library/Application\ Support/Bitcoin/bitcoin.conf
+```
+
+**중요**: 설정 파일을 생성한 후 반드시 `rpcpassword`를 안전한 비밀번호로 변경하세요!
+
+### 완전한 설정 파일 예제
+
+완전한 설정 파일 예제는 [bitcoin.conf.example](./bitcoin.conf.example)를 참고하세요.
+
+## 기본 설정 파일 예제
+
+다음은 기본적인 bitcoin.conf 파일 예제입니다:
+
+```conf
+# 네트워크 설정
+# 메인넷 (기본값)
+# testnet=1
+# regtest=1
+
+# P2P 네트워크 설정
+port=8333
+listen=1
+maxconnections=125
+
+# RPC 설정 (필수!)
+server=1
+rpcbind=127.0.0.1
+rpcport=8332
+rpcuser=bitcoin
+rpcpassword=your_secure_password_here  # 반드시 변경하세요!
+rpcallowip=127.0.0.1
+
+# 성능 최적화
+txindex=1
+dbcache=4500
+maxmempool=300
+
+# 로그 설정
+logtimestamps=1
+logips=1
+```
+
+**더 자세한 예제는 [bitcoin.conf.example](./bitcoin.conf.example) 파일을 참고하세요.**
 
 ### 데이터 디렉토리 설정
 ```conf

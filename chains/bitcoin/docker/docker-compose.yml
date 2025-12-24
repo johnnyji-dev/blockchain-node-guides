@@ -1,0 +1,59 @@
+version: '3.8'
+
+services:
+  bitcoind:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: bitcoin-node
+    restart: unless-stopped
+    ports:
+      # P2P 네트워크 포트
+      - "8333:8333"
+      # RPC 포트 (로컬호스트만 노출)
+      - "127.0.0.1:8332:8332"
+    volumes:
+      # 블록체인 데이터 영구 저장
+      - bitcoin-data:/home/bitcoin/.bitcoin
+      # 설정 파일 마운트 (선택사항, 파일이 존재하는 경우에만)
+      - ./bitcoin.conf:/home/bitcoin/.bitcoin/bitcoin.conf:ro
+    environment:
+      # 설정 파일을 사용하지 않는 경우 환경 변수로 설정 가능
+      BITCOIN_RPC_USER: ${BITCOIN_RPC_USER:-bitcoin}
+      BITCOIN_RPC_PASSWORD: ${BITCOIN_RPC_PASSWORD:-changeme}
+    command:
+      # 기본 옵션
+      - -printtoconsole
+      - -txindex=1
+      - -dbcache=4500
+      - -server=1
+      # 설정 파일이 있으면 자동으로 사용됨 (bitcoin.conf가 마운트된 경우)
+      # 설정 파일이 없으면 아래 환경 변수 사용
+      - -rpcuser=${BITCOIN_RPC_USER:-bitcoin}
+      - -rpcpassword=${BITCOIN_RPC_PASSWORD:-changeme}
+      - -rpcbind=0.0.0.0
+      - -rpcallowip=127.0.0.1
+    networks:
+      - bitcoin-network
+    # 리소스 제한 (선택사항)
+    deploy:
+      resources:
+        limits:
+          cpus: '4'
+          memory: 8G
+        reservations:
+          cpus: '2'
+          memory: 4G
+
+volumes:
+  bitcoin-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${BITCOIN_DATA_PATH:-./data}
+
+networks:
+  bitcoin-network:
+    driver: bridge
+

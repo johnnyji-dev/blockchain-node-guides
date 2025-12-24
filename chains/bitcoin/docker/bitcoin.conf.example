@@ -1,0 +1,38 @@
+# Bitcoin Core 설정 파일 예제
+# 이 파일을 bitcoin.conf로 복사하여 사용하세요
+
+# 네트워크 설정
+# 메인넷 (기본값)
+# testnet=1
+# regtest=1
+
+# P2P 네트워크 설정
+port=8333
+listen=1
+maxconnections=125
+
+# RPC 설정
+server=1
+rpcbind=0.0.0.0
+rpcport=8332
+rpcuser=bitcoin
+rpcpassword=changeme_secure_password_here
+rpcallowip=127.0.0.1
+# 외부 접근이 필요한 경우 (보안 주의)
+# rpcallowip=192.168.1.0/24
+
+# 성능 최적화
+txindex=1
+dbcache=4500
+maxmempool=300
+
+# 블록 필터 인덱스 (BIP 157)
+blockfilterindex=1
+
+# 로그 설정
+logtimestamps=1
+logips=1
+
+# 데이터 디렉토리 (Docker 내부에서는 자동 설정됨)
+# datadir=/home/bitcoin/.bitcoin
+

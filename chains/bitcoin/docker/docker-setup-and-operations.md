@@ -315,17 +315,33 @@ pwd
 # Bitcoin 데이터를 저장할 디렉토리 생성
 sudo mkdir -p /mnt/cryptocur-data/bitcoin
 
-# 디렉토리 권한 설정 (Docker가 접근할 수 있도록)
-# Docker는 보통 root로 실행되므로, 필요시 권한 조정
-sudo chown -R $USER:$USER /mnt/cryptocur-data/bitcoin
-# 또는 Docker 그룹에 권한 부여
+# 방법 1: 컨테이너 내부 bitcoin 사용자 UID 확인 후 설정 (권장)
+# 먼저 임시로 컨테이너를 실행하여 bitcoin 사용자 UID 확인
+docker run --rm docker_bitcoind id -u bitcoin
+# 출력 예시: 1000 (이 값을 기록)
+
+# 확인된 UID로 디렉토리 소유자 변경
+BITCOIN_UID=$(docker run --rm docker_bitcoind id -u bitcoin)
+sudo chown -R $BITCOIN_UID:$BITCOIN_UID /mnt/cryptocur-data/bitcoin
 sudo chmod -R 755 /mnt/cryptocur-data/bitcoin
+
+# 방법 2: 일반적으로 bitcoin 사용자는 UID 1000 (첫 번째 일반 사용자)
+# sudo chown -R 1000:1000 /mnt/cryptocur-data/bitcoin
+# sudo chmod -R 755 /mnt/cryptocur-data/bitcoin
+
+# 방법 3: 모든 사용자가 쓰기 가능하도록 설정 (보안상 권장하지 않음, 개발 환경용)
+# sudo chmod -R 777 /mnt/cryptocur-data/bitcoin
 
 # 디스크 공간 확인
 df -h /mnt/cryptocur-data
+
+# 권한 확인
+ls -ld /mnt/cryptocur-data/bitcoin
 ```
 
-**참고:** `/mnt/cryptocur-data/bitcoin` 디렉토리는 Bitcoin 블록체인 데이터를 저장하는 위치입니다. 충분한 디스크 공간(최소 500GB 이상)이 있는지 확인하세요.
+**참고:** 
+- `/mnt/cryptocur-data/bitcoin` 디렉토리는 Bitcoin 블록체인 데이터를 저장하는 위치입니다. 충분한 디스크 공간(최소 500GB 이상)이 있는지 확인하세요.
+- 권한 문제가 발생하면 위의 방법 중 하나를 사용하여 디렉토리 권한을 설정하세요.
 
 ### 3. 설정 파일 준비
 
@@ -884,7 +900,79 @@ exec: "-printtoconsole": executable file not found in $PATH: unknown
 
 **참고:** `bitcoin.conf` 파일이 마운트되어 있다면, 대부분의 설정은 설정 파일에서 관리할 수 있으므로 `command` 섹션을 최소화하거나 제거할 수도 있습니다.
 
-### 3. RPC 연결 실패
+### 3. 권한 문제 (Settings file could not be written)
+
+**증상:**
+```
+Error: Settings file could not be written:
+- Error: Unable to open settings file /home/bitcoin/.bitcoin/settings.json.tmp for writing
+```
+컨테이너가 계속 재시작되고 위와 같은 에러가 반복됩니다.
+
+**원인:**
+컨테이너 내부의 `bitcoin` 사용자가 호스트의 `/mnt/cryptocur-data/bitcoin` 디렉토리에 쓰기 권한이 없어서 발생합니다.
+
+**해결 방법:**
+
+1. **컨테이너 내부 bitcoin 사용자 UID 확인:**
+   ```bash
+   # 임시 컨테이너로 bitcoin 사용자 UID 확인
+   docker run --rm docker_bitcoind id -u bitcoin
+   # 또는
+   docker run --rm docker_bitcoind id bitcoin
+   ```
+
+2. **호스트 디렉토리 권한 설정:**
+   ```bash
+   # 방법 1: 확인된 UID로 소유자 변경 (권장)
+   BITCOIN_UID=$(docker run --rm docker_bitcoind id -u bitcoin)
+   sudo chown -R $BITCOIN_UID:$BITCOIN_UID /mnt/cryptocur-data/bitcoin
+   sudo chmod -R 755 /mnt/cryptocur-data/bitcoin
+   
+   # 방법 2: 일반적으로 UID 1000 (대부분의 경우)
+   sudo chown -R 1000:1000 /mnt/cryptocur-data/bitcoin
+   sudo chmod -R 755 /mnt/cryptocur-data/bitcoin
+   
+   # 방법 3: 모든 사용자 쓰기 권한 (보안상 권장하지 않음)
+   sudo chmod -R 777 /mnt/cryptocur-data/bitcoin
+   ```
+
+3. **권한 확인:**
+   ```bash
+   # 디렉토리 권한 확인
+   ls -ld /mnt/cryptocur-data/bitcoin
+   
+   # 디렉토리 내부 파일 권한 확인
+   ls -la /mnt/cryptocur-data/bitcoin
+   ```
+
+4. **컨테이너 재시작:**
+   ```bash
+   docker-compose down
+   docker-compose up -d
+   
+   # 로그 확인
+   docker-compose logs -f bitcoind
+   ```
+
+5. **여전히 문제가 발생하는 경우:**
+   ```bash
+   # 기존 디렉토리 삭제 후 재생성 (주의: 기존 데이터가 있다면 백업!)
+   sudo rm -rf /mnt/cryptocur-data/bitcoin
+   sudo mkdir -p /mnt/cryptocur-data/bitcoin
+   BITCOIN_UID=$(docker run --rm docker_bitcoind id -u bitcoin)
+   sudo chown -R $BITCOIN_UID:$BITCOIN_UID /mnt/cryptocur-data/bitcoin
+   sudo chmod -R 755 /mnt/cryptocur-data/bitcoin
+   
+   # 컨테이너 재시작
+   docker-compose up -d
+   ```
+
+**참고:** 
+- 디렉토리가 이미 존재하고 다른 소유자로 되어 있다면, 위의 `chown` 명령으로 소유자를 변경해야 합니다.
+- SELinux를 사용하는 시스템에서는 추가 설정이 필요할 수 있습니다.
+
+### 4. RPC 연결 실패
 
 ```bash
 # RPC 설정 확인
@@ -897,7 +985,7 @@ docker-compose exec bitcoind bitcoin-cli getnetworkinfo
 docker-compose exec bitcoind netstat -tlnp | grep 8332
 ```
 
-### 4. 동기화가 느림
+### 5. 동기화가 느림
 
 ```bash
 # 연결된 피어 수 확인
@@ -910,7 +998,7 @@ docker-compose exec bitcoind bitcoin-cli getpeerinfo
 # dbcache=8000
 ```
 
-### 5. 디스크 공간 부족
+### 6. 디스크 공간 부족
 
 ```bash
 # 데이터 디렉토리 크기 확인
@@ -926,7 +1014,7 @@ docker-compose exec bitcoind find /home/bitcoin/.bitcoin -name "*.log" -delete
 find /mnt/cryptocur-data/bitcoin -name "*.log" -delete
 ```
 
-### 6. 트랜잭션 브로드캐스팅 실패
+### 7. 트랜잭션 브로드캐스팅 실패
 
 ```bash
 # 트랜잭션 검증

@@ -2,10 +2,10 @@
 # Docker Compose File Version
 # ============================================================================
 # version: Docker Compose 파일 형식 버전을 지정합니다.
-# '3.8'은 Docker Compose 버전 3.8 형식을 사용합니다.
-# 이 버전은 Docker Engine 19.03.0 이상에서 지원됩니다.
+# '3.3'은 Docker Compose 버전 3.3 형식을 사용합니다.
+# 이 버전은 Docker Engine 17.06.0 이상에서 지원됩니다.
 # 최신 기능과 호환성을 위해 적절한 버전을 선택하는 것이 중요합니다.
-version: '3.8'
+version: '3.3'
 
 # ============================================================================
 # Services Definition
@@ -74,13 +74,17 @@ services:
     # volumes: 호스트와 컨테이너 간의 디렉토리/파일 마운트를 정의합니다.
     # 컨테이너가 삭제되어도 데이터가 유지되도록 합니다.
     volumes:
-      # 블록체인 데이터 영구 저장
-      # bitcoin-data:/home/bitcoin/.bitcoin: 명명된 볼륨을 컨테이너 경로에 마운트
-      #   - bitcoin-data는 아래 volumes 섹션에서 정의된 볼륨입니다.
-      #   - /home/bitcoin/.bitcoin은 Bitcoin Core가 데이터를 저장하는 기본 경로입니다.
-      #   - 이 볼륨에는 블록체인 데이터(수백 GB), 지갑 파일, 설정 파일 등이 저장됩니다.
+      # 블록체인 데이터 영구 저장 (바인드 마운트)
+      # /mnt/cryptocur-data/bitcoin:/home/bitcoin/.bitcoin: 호스트의 특정 경로를 컨테이너 경로에 직접 마운트
+      #   - /mnt/cryptocur-data/bitcoin: 호스트의 절대 경로 (블록체인 데이터가 저장될 위치)
+      #   - /home/bitcoin/.bitcoin: 컨테이너 내부의 Bitcoin Core 데이터 디렉토리
+      #   - 이 경로에는 블록체인 데이터(수백 GB), 지갑 파일, 설정 파일 등이 저장됩니다.
       #   - 컨테이너를 재생성해도 데이터가 유지됩니다.
-      - bitcoin-data:/home/bitcoin/.bitcoin
+      # 중요: 디렉토리가 존재하고 적절한 권한이 설정되어 있어야 합니다.
+      #   실행 전에 다음 명령어를 실행하세요:
+      #   sudo mkdir -p /mnt/cryptocur-data/bitcoin
+      #   BITCOIN_UID=$(docker run --rm docker_bitcoind id -u bitcoin) && sudo chown -R $BITCOIN_UID:$BITCOIN_UID /mnt/cryptocur-data/bitcoin
+      - /mnt/cryptocur-data/bitcoin:/home/bitcoin/.bitcoin
       # 설정 파일 마운트 (선택사항, 파일이 존재하는 경우에만)
       # ./bitcoin.conf:/home/bitcoin/.bitcoin/bitcoin.conf:ro
       #   - ./bitcoin.conf: 호스트의 현재 디렉토리에 있는 bitcoin.conf 파일
@@ -116,35 +120,47 @@ services:
     # command: Dockerfile의 CMD를 오버라이드하여 다른 명령어를 실행합니다.
     # Bitcoin Core의 명령줄 옵션을 직접 지정할 수 있습니다.
     command:
+      # bitcoind 실행 파일 (필수)
+      # Docker는 첫 번째 항목을 실행 파일로 인식하므로 반드시 'bitcoind'를 첫 번째로 지정해야 합니다.
+      # 이 항목이 없으면 "executable file not found" 에러가 발생할 수 있습니다.
+      - bitcoind
       # 기본 옵션
       # -printtoconsole: 로그를 콘솔에 출력
       #   docker-compose logs로 로그를 확인할 수 있습니다.
       - -printtoconsole
       # -txindex=1: 트랜잭션 인덱스 활성화
-      #   txid로 트랜잭션을 조회할 수 있지만 추가 디스크 공간이 필요합니다.
+      #   txid로 트랜잭션을 조회할 수 있지만 추가 디스크 공간이 필요합니다 (~20GB 이상).
+      #   이 기능이 필요하지 않으면 제거하여 디스크 공간을 절약할 수 있습니다.
       - -txindex=1
       # -dbcache=4500: 데이터베이스 캐시 크기 (MB)
       #   동기화 속도와 쿼리 성능을 향상시킵니다.
+      #   더 높은 값(예: 8000)은 더 빠른 성능을 제공하지만 더 많은 RAM이 필요합니다.
+      #   시스템의 사용 가능한 메모리에 맞게 조정하세요.
       - -dbcache=4500
       # -server=1: JSON-RPC 서버 활성화
       #   bitcoin-cli를 사용하려면 필수입니다.
+      #   이 옵션이 없으면 RPC 명령어를 사용할 수 없습니다.
       - -server=1
       # 설정 파일이 있으면 자동으로 사용됨 (bitcoin.conf가 마운트된 경우)
       # 설정 파일이 없으면 아래 환경 변수 사용
       # -rpcuser: RPC 인증 사용자명
       #   환경 변수에서 값을 가져오거나 기본값 'bitcoin'을 사용합니다.
+      #   bitcoin.conf 파일에 rpcuser가 설정되어 있으면 이 옵션은 무시됩니다.
       - -rpcuser=${BITCOIN_RPC_USER:-bitcoin}
       # -rpcpassword: RPC 인증 비밀번호
       #   환경 변수에서 값을 가져오거나 기본값 'changeme'을 사용합니다.
       #   보안을 위해 반드시 변경해야 합니다.
+      #   bitcoin.conf 파일에 rpcpassword가 설정되어 있으면 이 옵션은 무시됩니다.
       - -rpcpassword=${BITCOIN_RPC_PASSWORD:-changeme}
       # -rpcbind=0.0.0.0: RPC 서버를 모든 네트워크 인터페이스에 바인딩
       #   컨테이너 내부에서는 모든 인터페이스에서 접근 가능하지만,
       #   포트 매핑에서 127.0.0.1로 제한했으므로 호스트에서는 localhost만 접근 가능합니다.
+      #   이는 보안상 권장되는 설정입니다.
       - -rpcbind=0.0.0.0
       # -rpcallowip=127.0.0.1: RPC 접근을 허용할 IP 주소
       #   127.0.0.1 (localhost)만 허용하여 보안을 강화합니다.
-      #   다른 IP를 허용하려면 추가로 지정할 수 있습니다.
+      #   다른 IP를 허용하려면 추가로 지정할 수 있습니다 (예: -rpcallowip=192.168.1.0/24).
+      #   bitcoin.conf 파일에 rpcallowip가 설정되어 있으면 이 옵션은 무시됩니다.
       - -rpcallowip=127.0.0.1
 
     # ========================================================================
@@ -160,60 +176,45 @@ services:
     # ========================================================================
     # Resource Limits (Optional)
     # ========================================================================
-    # deploy: Docker Swarm 모드에서 사용되지만, docker-compose에서도 일부 기능을 사용할 수 있습니다.
-    # 리소스 제한을 설정하여 컨테이너가 과도한 리소스를 사용하지 않도록 합니다.
-    # 리소스 제한 (선택사항)
-    deploy:
-      resources:
-        # limits: 컨테이너가 사용할 수 있는 최대 리소스
-        # 이 값을 초과하면 컨테이너가 제한됩니다.
-        limits:
-          # cpus: 최대 CPU 코어 수
-          # '4'는 4개의 CPU 코어를 의미합니다.
-          # Bitcoin Core는 CPU 집약적이므로 충분한 CPU를 할당하는 것이 좋습니다.
-          cpus: '4'
-          # memory: 최대 메모리 사용량
-          # 8G는 8GB의 메모리를 의미합니다.
-          # dbcache 설정과 함께 고려하여 충분한 메모리를 할당해야 합니다.
-          memory: 8G
-        # reservations: 컨테이너에 보장할 최소 리소스
-        # 시스템이 이만큼의 리소스를 항상 할당하려고 시도합니다.
-        reservations:
-          # cpus: 보장할 최소 CPU 코어 수
-          # '2'는 최소 2개의 CPU 코어를 보장합니다.
-          cpus: '2'
-          # memory: 보장할 최소 메모리
-          # 4G는 최소 4GB의 메모리를 보장합니다.
-          # dbcache=4500MB와 함께 고려하여 적절한 값을 설정합니다.
-          memory: 4G
+    # deploy: Docker Swarm 모드에서 주로 사용되지만, docker-compose에서는 제한적으로 지원됩니다.
+    # 주의: 'deploy' 섹션의 리소스 제한은 Docker Swarm 모드에서만 작동합니다.
+    # docker-compose를 사용하는 경우 리소스 제한을 설정하려면 'docker update' 명령어를 사용해야 합니다.
+    # 리소스 제한 (선택사항, Docker Swarm 모드에서만 작동)
+    # deploy:
+    #   resources:
+    #     # limits: 컨테이너가 사용할 수 있는 최대 리소스
+    #     # 이 값을 초과하면 컨테이너가 제한됩니다.
+    #     limits:
+    #       # cpus: 최대 CPU 코어 수
+    #       # '4'는 4개의 CPU 코어를 의미합니다.
+    #       # Bitcoin Core는 CPU 집약적이므로 충분한 CPU를 할당하는 것이 좋습니다.
+    #       cpus: '4'
+    #       # memory: 최대 메모리 사용량
+    #       # 8G는 8GB의 메모리를 의미합니다.
+    #       # dbcache 설정과 함께 고려하여 충분한 메모리를 할당해야 합니다.
+    #       memory: 8G
+    #     # reservations: 컨테이너에 보장할 최소 리소스
+    #     # 시스템이 이만큼의 리소스를 항상 할당하려고 시도합니다.
+    #     reservations:
+    #       # cpus: 보장할 최소 CPU 코어 수
+    #       # '2'는 최소 2개의 CPU 코어를 보장합니다.
+    #       cpus: '2'
+    #       # memory: 보장할 최소 메모리
+    #       # 4G는 최소 4GB의 메모리를 보장합니다.
+    #       # dbcache=4500MB와 함께 고려하여 적절한 값을 설정합니다.
+    #       memory: 4G
 
 # ============================================================================
 # Volumes Definition
 # ============================================================================
 # volumes: 데이터 영구 저장을 위한 볼륨을 정의합니다.
-# 명명된 볼륨(named volume) 또는 바인드 마운트(bind mount)를 사용할 수 있습니다.
-volumes:
-  # bitcoin-data: 볼륨 이름
-  # 이 이름으로 위의 services 섹션에서 참조됩니다.
-  bitcoin-data:
-    # driver: 볼륨 드라이버
-    # local: 로컬 파일시스템에 저장하는 기본 드라이버
-    driver: local
-    # driver_opts: 드라이버별 옵션
-    driver_opts:
-      # type: 마운트 타입
-      # none: 특별한 파일시스템 타입 없이 바인드 마운트를 사용
-      type: none
-      # o: 마운트 옵션
-      # bind: 바인드 마운트를 사용하여 호스트의 특정 디렉토리에 직접 마운트
-      o: bind
-      # device: 마운트할 호스트 디렉토리 경로
-      # ${BITCOIN_DATA_PATH:-./data}: 환경 변수가 없으면 './data'를 기본값으로 사용
-      #   - ./data는 docker-compose.yml이 있는 디렉토리의 data 폴더입니다.
-      #   - 이 경로에 블록체인 데이터가 저장됩니다.
-      #   - 절대 경로를 사용하려면: /path/to/bitcoin/data
-      #   - .env 파일에서 BITCOIN_DATA_PATH를 설정할 수 있습니다.
-      device: ${BITCOIN_DATA_PATH:-./data}
+# 현재는 바인드 마운트를 사용하므로 이 섹션은 주석 처리되어 있습니다.
+# 명명된 볼륨(named volume)을 사용하려면 아래 주석을 해제하고 volumes 섹션을 수정하세요.
+# volumes:
+#   bitcoin-data:
+#     # 바인드 마운트를 사용하여 /mnt/cryptocur-data/bitcoin에 데이터 저장
+#     # 데이터는 호스트의 /mnt/cryptocur-data/bitcoin 디렉토리에 저장됩니다
+#     # 시작하기 전에 디렉토리가 존재하고 적절한 권한이 설정되어 있는지 확인하세요
 
 # ============================================================================
 # Networks Definition
@@ -229,4 +230,3 @@ networks:
     #   - 같은 호스트의 컨테이너들이 서로 통신할 수 있습니다.
     #   - 외부 네트워크와의 통신은 포트 매핑을 통해 이루어집니다.
     driver: bridge
-

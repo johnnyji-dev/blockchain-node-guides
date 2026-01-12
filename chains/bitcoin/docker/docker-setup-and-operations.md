@@ -844,7 +844,47 @@ docker-compose restart bitcoind
 docker-compose up -d --force-recreate bitcoind
 ```
 
-### 2. RPC 연결 실패
+### 2. "executable file not found" 또는 "unable to start container process" 에러
+
+**증상:**
+```
+ERROR: unable to start container process: error during container init: 
+exec: "-printtoconsole": executable file not found in $PATH: unknown
+```
+
+**원인:**
+`docker-compose.yml`의 `command` 섹션에서 실행 파일(`bitcoind`)이 누락되어 옵션만 지정된 경우 발생합니다.
+
+**해결 방법:**
+
+1. `docker-compose.yml` 파일의 `command` 섹션을 확인합니다:
+   ```yaml
+   command:
+     - bitcoind        # 이 줄이 있어야 합니다!
+     - -printtoconsole
+     - -txindex=1
+     ...
+   ```
+
+2. 첫 번째 항목이 `bitcoind`인지 확인합니다. 만약 `-printtoconsole`로 시작한다면 수정이 필요합니다:
+   ```yaml
+   command:
+     - bitcoind        # 실행 파일을 첫 번째로 추가
+     - -printtoconsole
+     - -txindex=1
+     - -dbcache=4500
+     - -server=1
+   ```
+
+3. 수정 후 컨테이너를 재시작합니다:
+   ```bash
+   docker-compose down
+   docker-compose up -d
+   ```
+
+**참고:** `bitcoin.conf` 파일이 마운트되어 있다면, 대부분의 설정은 설정 파일에서 관리할 수 있으므로 `command` 섹션을 최소화하거나 제거할 수도 있습니다.
+
+### 3. RPC 연결 실패
 
 ```bash
 # RPC 설정 확인
@@ -857,7 +897,7 @@ docker-compose exec bitcoind bitcoin-cli getnetworkinfo
 docker-compose exec bitcoind netstat -tlnp | grep 8332
 ```
 
-### 3. 동기화가 느림
+### 4. 동기화가 느림
 
 ```bash
 # 연결된 피어 수 확인
@@ -870,7 +910,7 @@ docker-compose exec bitcoind bitcoin-cli getpeerinfo
 # dbcache=8000
 ```
 
-### 4. 디스크 공간 부족
+### 5. 디스크 공간 부족
 
 ```bash
 # 데이터 디렉토리 크기 확인
@@ -886,7 +926,7 @@ docker-compose exec bitcoind find /home/bitcoin/.bitcoin -name "*.log" -delete
 find /mnt/cryptocur-data/bitcoin -name "*.log" -delete
 ```
 
-### 5. 트랜잭션 브로드캐스팅 실패
+### 6. 트랜잭션 브로드캐스팅 실패
 
 ```bash
 # 트랜잭션 검증

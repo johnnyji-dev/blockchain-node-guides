@@ -61,13 +61,13 @@ COPY --chown=$DAEMONUSER:$DAEMONUSER launcher.sh $WORKDIR/
 RUN chmod +x $WORKDIR/launcher.sh
 
 # 포트 노출
-# 30303: Geth P2P (TCP/UDP)
-# 3001: Geth Engine API (내부 통신용)
-# 3002: Geth HTTP-RPC
-# 13000: Prysm P2P (TCP/UDP)
-# 4000: Prysm gRPC
-# 3500: Prysm HTTP-RPC
-EXPOSE 30303/tcp 30303/udp 3001 3002 13000/tcp 13000/udp 4000 3500
+# 30313: Geth P2P (TCP/UDP) - Solana와 충돌 방지
+# 3011: Geth Engine API (내부 통신용)
+# 3012: Geth HTTP-RPC
+# 13010: Prysm P2P (TCP/UDP)
+# 4010: Prysm gRPC
+# 3510: Prysm HTTP-RPC
+EXPOSE 30313/tcp 30313/udp 3011 3012 13010/tcp 13010/udp 4010 3510
 
 # 작업 디렉토리 설정
 WORKDIR $WORKDIR

@@ -58,8 +58,8 @@ gosu $DAEMONUSER ./geth $GETH_OPTIONS \
     --datadir $DATADIR \
     --port $P2PPORT \
     --log.rotate \
-    --authrpc.vhosts=localhost --authrpc.port=3001 --authrpc.jwtsecret jwt.hex \
-    --http --http.addr=0.0.0.0 --http.port=3002 --http.corsdomain=* --http.vhosts=* --http.api debug,web3,eth,txpool,net \
+    --authrpc.vhosts=localhost --authrpc.port=3011 --authrpc.jwtsecret jwt.hex \
+    --http --http.addr=0.0.0.0 --http.port=3012 --http.corsdomain=* --http.vhosts=* --http.api debug,web3,eth,txpool,net \
     --txpool.globalslots 65536 --txpool.accountslots 65536 --txpool.globalqueue 65536 --txpool.accountqueue 65536 \
     --txlookuplimit=2350000 &
 PID1=$!
@@ -70,7 +70,7 @@ while true; do
     sleep 10
     
     # Engine API 엔드포인트 확인
-    http_status=$(curl -IsS --head "http://localhost:3001" 2>/dev/null | head -n 1 | cut -d' ' -f2)
+    http_status=$(curl -IsS --head "http://localhost:3011" 2>/dev/null | head -n 1 | cut -d' ' -f2)
     
     # http_status가 비어있거나 숫자가 아닐 경우 기본값 설정
     if [[ ! "$http_status" =~ ^[0-9]+$ ]]; then
@@ -93,7 +93,7 @@ done
 echo "Starting Prysm Beacon Chain with options: ${PRYSM_OPTIONS}"
 gosu $DAEMONUSER ./beacon-chain $PRYSM_OPTIONS \
     --datadir $DATADIR \
-    --execution-endpoint=http://localhost:3001 \
+    --execution-endpoint=http://localhost:3011 \
     --jwt-secret=jwt.hex \
     --genesis-state=genesis.ssz \
     --accept-terms-of-use &

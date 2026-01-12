@@ -14,28 +14,28 @@ services:
     container_name: ethereum-node
     restart: unless-stopped
     ports:
-      # Geth P2P network port (TCP)
-      - "30303:30303/tcp"
+      # Geth P2P network port (TCP) - Solana(3000, 8000-8025)와 충돌 방지
+      - "30313:30313/tcp"
       # Geth P2P network port (UDP)
-      - "30303:30303/udp"
+      - "30313:30313/udp"
       # Geth Engine API port (internal, for Prysm communication)
-      - "127.0.0.1:3001:3001"
+      - "127.0.0.1:3011:3011"
       # Geth HTTP-RPC port (exposed to localhost only)
-      - "127.0.0.1:3002:3002"
+      - "127.0.0.1:3012:3012"
       # Prysm P2P network port (TCP)
-      - "13000:13000/tcp"
+      - "13010:13010/tcp"
       # Prysm P2P network port (UDP)
-      - "13000:13000/udp"
+      - "13010:13010/udp"
       # Prysm gRPC port (exposed to localhost only)
-      - "127.0.0.1:4000:4000"
+      - "127.0.0.1:4010:4010"
       # Prysm HTTP-RPC port (exposed to localhost only)
-      - "127.0.0.1:3500:3500"
+      - "127.0.0.1:3510:3510"
     volumes:
       # Persistent storage for blockchain data
       - /mnt/cryptocur-data/ethereum:/var/lib/coindata
     environment:
-      # P2P port for Geth (required)
-      P2PPORT: ${P2PPORT:-30303}
+      # P2P port for Geth (required) - Solana와 충돌 방지를 위해 30313 사용
+      P2PPORT: ${P2PPORT:-30313}
       # Network mode: mainnet (default), goerli, sepolia
       MODE: ${MODE:-mainnet}
       # Maximum peer connections
@@ -94,8 +94,8 @@ services:
         --datadir $$DATADIR \
         --port $$P2PPORT \
         --log.rotate \
-        --authrpc.vhosts=localhost --authrpc.port=3001 --authrpc.jwtsecret jwt.hex \
-        --http --http.addr=0.0.0.0 --http.port=3002 --http.corsdomain=* --http.vhosts=* --http.api debug,web3,eth,txpool,net \
+        --authrpc.vhosts=localhost --authrpc.port=3011 --authrpc.jwtsecret jwt.hex \
+        --http --http.addr=0.0.0.0 --http.port=3012 --http.corsdomain=* --http.vhosts=* --http.api debug,web3,eth,txpool,net \
         --txpool.globalslots 65536 --txpool.accountslots 65536 --txpool.globalqueue 65536 --txpool.accountqueue 65536 \
         --txlookuplimit=2350000 &
       PID1=$$!;
@@ -104,7 +104,7 @@ services:
       echo \"Waiting for Geth to be ready...\";
       while true; do
         sleep 10;
-        http_status=$$(curl -IsS --head \"http://localhost:3001\" 2>/dev/null | head -n 1 | cut -d' ' -f2);
+        http_status=$$(curl -IsS --head \"http://localhost:3011\" 2>/dev/null | head -n 1 | cut -d' ' -f2);
         if [[ ! \"$$http_status\" =~ ^[0-9]+$$ ]]; then
           http_status=0;
         fi;
@@ -122,7 +122,7 @@ services:
       echo \"Starting Prysm Beacon Chain with options: $$PRYSM_OPTIONS\";
       gosu $$DAEMONUSER ./beacon-chain $$PRYSM_OPTIONS \
         --datadir $$DATADIR \
-        --execution-endpoint=http://localhost:3001 \
+        --execution-endpoint=http://localhost:3011 \
         --jwt-secret=jwt.hex \
         --genesis-state=genesis.ssz \
         --accept-terms-of-use &

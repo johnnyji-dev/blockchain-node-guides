@@ -14,7 +14,7 @@ services:
       - "127.0.0.1:8332:8332"
     volumes:
       # Persistent storage for blockchain data
-      - bitcoin-data:/home/bitcoin/.bitcoin
+      - /mnt/cryptocur-data/bitcoin:/home/bitcoin/.bitcoin
       # Configuration file mount (optional, only if file exists)
       - ./bitcoin.conf:/home/bitcoin/.bitcoin/bitcoin.conf:ro
     environment:
@@ -47,17 +47,11 @@ services:
     #       cpus: '2'
     #       memory: 4G
 
-volumes:
-  bitcoin-data:
-    # Using named volume (automatically managed by Docker)
-    # Data will be stored in Docker's volume directory
-    # To use a specific host path, uncomment the driver_opts below and create the directory first
-    driver: local
-    # For bind mount to specific directory, uncomment below and create ./data directory:
-    # driver_opts:
-    #   type: none
-    #   o: bind
-    #   device: ${BITCOIN_DATA_PATH:-./data}
+# volumes:
+#   bitcoin-data:
+#     # Using bind mount to /mnt/cryptocur-data/bitcoin
+#     # Data will be stored in /mnt/cryptocur-data/bitcoin on the host
+#     # Make sure the directory exists and has proper permissions before starting
 
 networks:
   bitcoin-network:

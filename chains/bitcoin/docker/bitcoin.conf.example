@@ -1,38 +1,145 @@
-# Bitcoin Core 설정 파일 예제
-# 이 파일을 bitcoin.conf로 복사하여 사용하세요
+# Bitcoin Core configuration file example
+# Copy this file to bitcoin.conf to use
 
-# 네트워크 설정
-# 메인넷 (기본값)
+# ============================================================================
+# Network settings
+# ============================================================================
+# Mainnet (default)
+# Use mainnet for production Bitcoin network
 # testnet=1
+# Use testnet for testing purposes (testnet3)
 # regtest=1
+# Use regtest for local development and testing (creates private blockchain)
 
-# P2P 네트워크 설정
+# ============================================================================
+# P2P network settings
+# ============================================================================
+# Port for P2P network communication
+# Default: 8333 for mainnet, 18333 for testnet
+# This port must be open for incoming connections if you want to accept peers
+#
+# IMPORTANT: Changing the port number has the following effects:
+# 1. Reduced inbound connections: Most Bitcoin nodes expect peers on port 8333
+#    - Other nodes will have difficulty discovering and connecting to your node
+#    - You may receive fewer incoming peer connections
+#    - Your node may become less discoverable on the network
+# 2. Outbound connections still work: Your node can still connect to other nodes
+#    - Bitcoin Core will make outgoing connections regardless of your port
+#    - You can still sync the blockchain and participate in the network
+# 3. Firewall configuration: You must open the custom port in your firewall
+#    - Ensure the new port is open in your firewall/router
+#    - Update any port forwarding rules if applicable
+# 4. Network topology: Non-standard ports may affect network health
+#    - The Bitcoin network benefits from nodes accepting incoming connections
+#    - Using a non-standard port reduces your contribution to network connectivity
+#
+# When to change the port:
+# - Running multiple Bitcoin nodes on the same machine (use different ports)
+# - Port 8333 is blocked by your ISP or firewall and cannot be opened
+# - Security through obscurity (not recommended as primary security measure)
+#
+# Recommendation: Keep the default port (8333) unless you have a specific reason
 port=8333
+
+# Enable listening for incoming connections
+# Set to 1 to accept incoming peer connections
+# Set to 0 to only make outgoing connections (useful for firewalled nodes)
 listen=1
+
+# Maximum number of connections to other peers
+# Default: 125
+# Higher values allow more peers but consume more bandwidth and resources
+# Recommended: 125-200 for full nodes, lower for resource-constrained systems
 maxconnections=125
 
-# RPC 설정
+# ============================================================================
+# RPC settings
+# ============================================================================
+# Enable JSON-RPC server
+# Required for RPC API access (bitcoin-cli, wallet operations, etc.)
 server=1
+
+# Bind RPC server to this address
+# 0.0.0.0 means listen on all network interfaces
+# Use 127.0.0.1 to only allow localhost connections (more secure)
 rpcbind=0.0.0.0
+
+# Port for JSON-RPC server
+# Default: 8332 for mainnet, 18332 for testnet
+# Make sure this port is not exposed to the internet without proper authentication
 rpcport=8332
+
+# RPC authentication username
+# Required when server=1
+# Use a strong, unique username for security
 rpcuser=bitcoin
+
+# RPC authentication password
+# Required when server=1
+# MUST be changed to a strong, secure password
+# Use a long, random password (at least 32 characters recommended)
 rpcpassword=changeme_secure_password_here
+
+# Allowed IP addresses for RPC access
+# Only these IPs can access the RPC interface
+# 127.0.0.1 allows only localhost (most secure)
+# Use CIDR notation for IP ranges (e.g., 192.168.1.0/24)
 rpcallowip=127.0.0.1
-# 외부 접근이 필요한 경우 (보안 주의)
+# If external access is needed (security warning)
+# Only uncomment if absolutely necessary and ensure strong password
 # rpcallowip=192.168.1.0/24
 
-# 성능 최적화
+# ============================================================================
+# Performance optimization
+# ============================================================================
+# Enable transaction index
+# Allows querying transactions by txid using getrawtransaction
+# Requires significant disk space (~20GB+ additional storage)
+# Disable if you don't need transaction lookup by ID
 txindex=1
+
+# Database cache size in megabytes
+# Default: 450 (MB)
+# Higher values improve sync speed and query performance
+# Recommended: 4500-8000 MB depending on available RAM
+# Minimum: 4 MB, Maximum: 16384 MB (16 GB)
 dbcache=4500
+
+# Maximum memory pool size in megabytes
+# Default: 300 MB
+# Mempool stores unconfirmed transactions
+# Higher values allow more pending transactions but use more RAM
+# Recommended: 300-1000 MB depending on transaction volume
 maxmempool=300
 
-# 블록 필터 인덱스 (BIP 157)
+# ============================================================================
+# Block filter index (BIP 157)
+# ============================================================================
+# Enable compact block filter index
+# Allows lightweight clients to query blocks efficiently
+# Requires additional disk space (~5-10GB)
+# Useful for SPV wallets and block explorers
+# Disable if you don't need this feature to save disk space
 blockfilterindex=1
 
-# 로그 설정
+# ============================================================================
+# Log settings
+# ============================================================================
+# Add timestamps to log output
+# Makes debugging and monitoring easier
 logtimestamps=1
+
+# Include IP addresses in log output
+# Useful for tracking peer connections and debugging network issues
+# May include sensitive information, disable if privacy is a concern
 logips=1
 
-# 데이터 디렉토리 (Docker 내부에서는 자동 설정됨)
+# ============================================================================
+# Data directory
+# ============================================================================
+# Data directory (automatically set inside Docker)
+# Location where blockchain data, wallet files, and configuration are stored
+# Default: ~/.bitcoin on Linux/Mac, %APPDATA%\Bitcoin on Windows
+# In Docker, this is typically set via volume mounts
 # datadir=/home/bitcoin/.bitcoin
 

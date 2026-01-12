@@ -22,6 +22,8 @@ services:
       BITCOIN_RPC_USER: ${BITCOIN_RPC_USER:-bitcoin}
       BITCOIN_RPC_PASSWORD: ${BITCOIN_RPC_PASSWORD:-changeme}
     command:
+      # Execute bitcoind with options
+      - bitcoind
       # Basic options
       - -printtoconsole
       - -txindex=1

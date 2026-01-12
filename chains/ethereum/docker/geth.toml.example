@@ -1,0 +1,122 @@
+# Ethereum Geth Configuration File Example
+# Copy this file to geth.toml to use
+
+# ============================================================================
+# Network settings
+# ============================================================================
+# Mainnet (default)
+# Use mainnet for production Ethereum network
+# mainnet = true
+
+# Testnet (Goerli, Sepolia, etc.)
+# testnet = "goerli"
+# testnet = "sepolia"
+
+# ============================================================================
+# Data directory
+# ============================================================================
+# DataDir: Blockchain data storage directory
+# Default: ~/.ethereum on Linux/Mac, %APPDATA%\Ethereum on Windows
+# In Docker, this is typically set via volume mounts
+# DataDir = "/home/ethereum/.ethereum"
+
+# ============================================================================
+# P2P network settings
+# ============================================================================
+# Port for P2P network communication
+# Default: 30303
+# This port must be open for incoming connections if you want to accept peers
+Port = 30303
+
+# Maximum number of peer connections
+# Default: 50
+# Higher values allow more peers but consume more bandwidth and resources
+# Recommended: 50-100 for full nodes
+MaxPeers = 50
+
+# ============================================================================
+# HTTP-RPC settings
+# ============================================================================
+# Enable HTTP-RPC server
+# Required for JSON-RPC API access (web3, eth, etc.)
+[HTTP]
+Enabled = true
+# Bind HTTP-RPC server to this address
+# 0.0.0.0 means listen on all network interfaces
+# Use 127.0.0.1 to only allow localhost connections (more secure)
+Addr = "0.0.0.0"
+# Port for HTTP-RPC server
+# Default: 8545
+Port = 8545
+# Allowed RPC APIs
+# Available: eth, net, web3, admin, debug, miner, txpool, personal
+APIs = ["eth", "net", "web3", "admin", "debug"]
+# CORS domain (for web applications)
+# "*" allows all domains (less secure, for development)
+# For production, specify exact domains
+CorsDomain = ["*"]
+# Virtual hosts
+# "*" allows all hosts
+VHosts = ["*"]
+
+# ============================================================================
+# WebSocket-RPC settings
+# ============================================================================
+# Enable WebSocket-RPC server
+# Required for real-time subscriptions (new blocks, pending transactions, etc.)
+[WS]
+Enabled = true
+# Bind WebSocket-RPC server to this address
+Addr = "0.0.0.0"
+# Port for WebSocket-RPC server
+# Default: 8546
+Port = 8546
+# Allowed RPC APIs
+APIs = ["eth", "net", "web3", "admin", "debug"]
+# Allowed origins (for web applications)
+Origins = ["*"]
+
+# ============================================================================
+# Performance optimization
+# ============================================================================
+# Cache size in megabytes
+# Default: 1024 MB
+# Higher values improve sync speed and query performance
+# Recommended: 4096-8192 MB depending on available RAM
+Cache = 4096
+
+# Sync mode
+# Available: full, snap, light
+# - full: Full sync (downloads all blocks and state, slowest but most complete)
+# - snap: Snap sync (faster, downloads recent state snapshots)
+# - light: Light sync (fastest, but limited functionality)
+# Recommended: snap for most use cases
+SyncMode = "snap"
+
+# ============================================================================
+# Log settings
+# ============================================================================
+# Log verbosity level
+# Available: 0 (silent) to 5 (trace)
+# Default: 3 (info)
+Verbosity = 3
+
+# Log file path (optional)
+# If not specified, logs go to stderr/stdout
+# LogFile = "/home/ethereum/.ethereum/geth.log"
+
+# ============================================================================
+# Security settings
+# ============================================================================
+# Disable account management APIs (personal, admin)
+# Set to true to disable account creation and transaction signing
+# Recommended: true for production nodes
+NoUSB = true
+
+# ============================================================================
+# Mining settings (optional)
+# ============================================================================
+# Enable mining (not recommended for mainnet, use dedicated mining software)
+# MinerEnabled = false
+# MinerEtherbase = "0x0000000000000000000000000000000000000000"
+# MinerThreads = 0

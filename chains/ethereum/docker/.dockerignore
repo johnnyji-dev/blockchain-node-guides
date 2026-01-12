@@ -1,0 +1,36 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Documentation
+*.md
+!README.md
+
+# Docker
+docker-compose.override.yml
+.dockerignore
+
+# Config files (user-specific)
+geth.toml
+*.conf
+*.log
+
+# Data directories
+data/
+*.data
+
+# Build artifacts
+*.tar.gz
+*.zip
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db

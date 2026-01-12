@@ -77,25 +77,6 @@ APIs = ["eth", "net", "web3", "admin", "debug"]
 Origins = ["*"]
 
 # ============================================================================
-# Engine API settings (for Consensus Layer communication)
-# ============================================================================
-# Enable Engine API server
-# Required for communication with Consensus Layer (Prysm, Lighthouse, etc.)
-# The Engine API uses JWT authentication for security
-[Auth]
-# Bind Engine API server to this address
-# 0.0.0.0 means listen on all network interfaces
-# Use 127.0.0.1 to only allow localhost connections (more secure)
-Addr = "0.0.0.0"
-# Port for Engine API server
-# Default: 8551
-Port = 8551
-# JWT secret file path
-# Generate with: openssl rand -hex 32 > jwt-secret
-# This file must be shared with the Consensus Layer client
-JWTSecret = "/home/ethereum/.ethereum/jwt-secret"
-
-# ============================================================================
 # Performance optimization
 # ============================================================================
 # Cache size in megabytes

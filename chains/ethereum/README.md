@@ -1,6 +1,24 @@
 # Ethereum 노드 가이드
 
-Ethereum Geth 노드 설치 및 운영에 대한 종합 가이드입니다.
+Ethereum 노드 설치 및 운영에 대한 종합 가이드입니다.
+
+## Ethereum 노드 구성
+
+Ethereum은 PoS(Proof of Stake)로 전환되어 두 가지 레이어로 구성됩니다:
+
+### 1. Execution Layer (실행 레이어)
+- **Geth**: Ethereum 실행 클라이언트
+- **공식 릴리스**: [https://github.com/ethereum/go-ethereum/releases](https://github.com/ethereum/go-ethereum/releases)
+- **최신 버전**: v1.16.7 (2024년 11월 기준)
+- **역할**: 트랜잭션 실행, 상태 관리, 블록 생성
+
+### 2. Consensus Layer (합의 레이어)
+- **Prysm**: Ethereum 합의 클라이언트
+- **공식 릴리스**: [https://github.com/prysmaticlabs/prysm/releases](https://github.com/prysmaticlabs/prysm/releases)
+- **최신 버전**: v7.1.2 (2026년 1월 기준)
+- **역할**: 블록 검증, 합의, 검증자 운영
+
+**참고**: 완전한 Ethereum 노드를 운영하려면 Execution Layer와 Consensus Layer를 모두 실행해야 합니다.
 
 ## 설치 방법 선택
 
@@ -80,6 +98,15 @@ docker-compose up -d
 
 ## 추가 리소스
 
+### Execution Layer (Geth)
 - [Geth 공식 문서](https://geth.ethereum.org/docs)
-- [Geth GitHub](https://github.com/ethereum/go-ethereum)
+- [Geth GitHub 릴리스](https://github.com/ethereum/go-ethereum/releases)
+- [Geth 다운로드 페이지](https://geth.ethereum.org/downloads)
+
+### Consensus Layer (Prysm)
+- [Prysm 공식 문서](https://docs.prylabs.network/)
+- [Prysm GitHub 릴리스](https://github.com/prysmaticlabs/prysm/releases)
+
+### 일반 리소스
 - [Ethereum Stack Exchange](https://ethereum.stackexchange.com/)
+- [Ethereum 공식 웹사이트](https://ethereum.org/)

@@ -1,0 +1,141 @@
+version: '3.3'
+
+# launcher.sh 없이 실행하는 방법
+# 방법 1: 인라인 스크립트 사용 (이 파일)
+# 방법 2: 두 서비스로 분리 (docker-compose-separate.yml 참고)
+
+services:
+  ethereum:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        GIT_VERSION: ${GIT_VERSION:-latest}
+    container_name: ethereum-node
+    restart: unless-stopped
+    ports:
+      # Geth P2P network port (TCP)
+      - "30303:30303/tcp"
+      # Geth P2P network port (UDP)
+      - "30303:30303/udp"
+      # Geth Engine API port (internal, for Prysm communication)
+      - "127.0.0.1:3001:3001"
+      # Geth HTTP-RPC port (exposed to localhost only)
+      - "127.0.0.1:3002:3002"
+      # Prysm P2P network port (TCP)
+      - "13000:13000/tcp"
+      # Prysm P2P network port (UDP)
+      - "13000:13000/udp"
+      # Prysm gRPC port (exposed to localhost only)
+      - "127.0.0.1:4000:4000"
+      # Prysm HTTP-RPC port (exposed to localhost only)
+      - "127.0.0.1:3500:3500"
+    volumes:
+      # Persistent storage for blockchain data
+      - /mnt/cryptocur-data/ethereum:/var/lib/coindata
+    environment:
+      # P2P port for Geth (required)
+      P2PPORT: ${P2PPORT:-30303}
+      # Network mode: mainnet (default), goerli, sepolia
+      MODE: ${MODE:-mainnet}
+      # Maximum peer connections
+      MAXPEERS: ${MAXPEERS:-25}
+    networks:
+      - ethereum-network
+    # launcher.sh 없이 인라인 스크립트로 실행
+    command: >
+      bash -c "
+      set -e;
+      
+      # 환경 변수 확인
+      if [ -z \"$$P2PPORT\" ]; then 
+        echo 'P2PPORT envvar is required' && exit 1;
+      fi;
+      
+      # 네트워크 모드에 따른 옵션 설정
+      if [ \"$$MODE\" = \"mainnet\" ] || [ \"$$MODE\" = \"\" ]; then
+        GENESIS_URL='https://github.com/eth-clients/eth2-networks/raw/master/shared/mainnet/genesis.ssz';
+        PRYSM_OPTIONS='--mainnet --checkpoint-sync-url=https://beaconstate.info --genesis-beacon-api-url=https://beaconstate.info';
+        GETH_OPTIONS='--mainnet --syncmode snap --gcmode archive --cache 16000';
+      elif [ \"$$MODE\" = \"goerli\" ]; then
+        GENESIS_URL='https://github.com/eth-clients/eth2-networks/raw/master/shared/prater/genesis.ssz';
+        PRYSM_OPTIONS=\"--$$MODE\";
+        GETH_OPTIONS=\"--$$MODE --syncmode snap --gcmode archive\";
+      elif [ \"$$MODE\" = \"sepolia\" ]; then
+        GENESIS_URL='https://github.com/eth-clients/merge-testnets/raw/main/sepolia/genesis.ssz';
+        PRYSM_OPTIONS='--terminal-total-difficulty-override 17000000000000000 --sepolia --checkpoint-sync-url=https://checkpoint-sync.sepolia.ethpandaops.io --genesis-beacon-api-url=https://checkpoint-sync.sepolia.ethpandaops.io/';
+        GETH_OPTIONS='--sepolia --syncmode snap --gcmode archive';
+      fi;
+      
+      # genesis.ssz 다운로드
+      if [ ! -f \"genesis.ssz\" ]; then
+        echo \"Downloading genesis.ssz from $$GENESIS_URL\";
+        wget -O genesis.ssz $$GENESIS_URL;
+      fi;
+      
+      # JWT secret 생성
+      if [ ! -f \"jwt.hex\" ] || [ ! -s \"jwt.hex\" ]; then
+        echo \"Generating JWT secret...\";
+        ./beacon-chain generate-auth-secret --output-file jwt.hex;
+        chmod 664 jwt.hex;
+      fi;
+      
+      # 폴더 권한 설정
+      set +e;
+      chown -R $$DAEMONUSER:$$DAEMONUSER $$WORKDIR;
+      chown -R $$DAEMONUSER:$$DAEMONUSER $$DATADIR;
+      chown $$DAEMONUSER:$$DAEMONUSER jwt.hex 2>/dev/null || true;
+      set -e;
+      
+      # Geth 실행
+      echo \"Starting Geth with options: $$GETH_OPTIONS\";
+      gosu $$DAEMONUSER ./geth $$GETH_OPTIONS \
+        --maxpeers=$$MAXPEERS \
+        --datadir $$DATADIR \
+        --port $$P2PPORT \
+        --log.rotate \
+        --authrpc.vhosts=localhost --authrpc.port=3001 --authrpc.jwtsecret jwt.hex \
+        --http --http.addr=0.0.0.0 --http.port=3002 --http.corsdomain=* --http.vhosts=* --http.api debug,web3,eth,txpool,net \
+        --txpool.globalslots 65536 --txpool.accountslots 65536 --txpool.globalqueue 65536 --txpool.accountqueue 65536 \
+        --txlookuplimit=2350000 &
+      PID1=$$!;
+      
+      # Geth 실행 완료까지 대기
+      echo \"Waiting for Geth to be ready...\";
+      while true; do
+        sleep 10;
+        http_status=$$(curl -IsS --head \"http://localhost:3001\" 2>/dev/null | head -n 1 | cut -d' ' -f2);
+        if [[ ! \"$$http_status\" =~ ^[0-9]+$$ ]]; then
+          http_status=0;
+        fi;
+        if (( http_status >= 100 && http_status < 500 )); then
+          echo \"Geth is ready (HTTP Status $$http_status).\";
+          break;
+        fi;
+        if ! kill -0 $$PID1 2>/dev/null; then
+          echo \"Geth process has exited. Check logs for errors.\";
+          exit 1;
+        fi;
+      done;
+      
+      # Prysm 실행
+      echo \"Starting Prysm Beacon Chain with options: $$PRYSM_OPTIONS\";
+      gosu $$DAEMONUSER ./beacon-chain $$PRYSM_OPTIONS \
+        --datadir $$DATADIR \
+        --execution-endpoint=http://localhost:3001 \
+        --jwt-secret=jwt.hex \
+        --genesis-state=genesis.ssz \
+        --accept-terms-of-use &
+      PID2=$$!;
+      
+      # 안전종료 설정
+      trap \"echo 'Shutting down...'; kill -INT $$PID2 2>/dev/null; sleep 5; kill -INT $$PID1 2>/dev/null; sleep 5; kill -9 $$PID1 $$PID2 2>/dev/null; exit 0\" TERM INT;
+      
+      # 프로세스 작업 완료 대기
+      wait $$PID1;
+      wait $$PID2;
+      "
+
+networks:
+  ethereum-network:
+    driver: bridge

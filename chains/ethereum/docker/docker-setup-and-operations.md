@@ -2,6 +2,27 @@
 
 Linux 서버에서 Ethereum 노드를 Docker로 설치하고 운영하는 종합 가이드입니다.
 
+## Ethereum 노드 구성
+
+이 Docker 설정은 **Execution Layer (Geth)**와 **Consensus Layer (Prysm)**를 통합한 완전한 Ethereum 노드입니다.
+
+### Execution Layer (실행 레이어) - Geth
+- **공식 릴리스**: [https://github.com/ethereum/go-ethereum/releases](https://github.com/ethereum/go-ethereum/releases)
+- **버전**: v1.16.7-b9f3a3d9 (geth-alltools)
+- **역할**: 트랜잭션 실행, 상태 관리, 블록 생성
+- **포트**: 30303 (P2P), 3001 (Engine API), 3002 (HTTP-RPC)
+
+### Consensus Layer (합의 레이어) - Prysm
+- **공식 릴리스**: [https://github.com/prysmaticlabs/prysm/releases](https://github.com/prysmaticlabs/prysm/releases)
+- **버전**: v7.1.2
+- **역할**: 블록 검증, 합의, 검증자 운영
+- **포트**: 13000 (P2P), 4000 (gRPC), 3500 (HTTP-RPC)
+
+### 통합 실행
+- `launcher.sh` 스크립트가 Geth와 Prysm을 자동으로 실행
+- JWT secret 자동 생성 및 공유
+- Geth가 준비될 때까지 대기 후 Prysm 시작
+
 ## 목차
 - [설치 전 시스템 확인](#설치-전-시스템-확인)
 - [Docker 설치 및 설정](#docker-설치-및-설정)
@@ -115,6 +136,7 @@ sudo lsof -i :8546
 - 30303: P2P 네트워크 통신 (인바운드/아웃바운드, TCP/UDP)
 - 8545: HTTP-RPC 서버 (로컬호스트만 권장)
 - 8546: WebSocket-RPC 서버 (로컬호스트만 권장)
+- 8551: Engine API 서버 (Consensus Layer와 통신, 로컬호스트만 권장)
 
 #### 방화벽 설정 확인
 ```bash
@@ -189,19 +211,9 @@ pwd
 # Ethereum 데이터를 저장할 디렉토리 생성
 sudo mkdir -p /mnt/cryptocur-data/ethereum
 
-# 방법 1: 컨테이너 내부 ethereum 사용자 UID 확인 후 설정 (권장)
-# 먼저 임시로 컨테이너를 실행하여 ethereum 사용자 UID 확인
-docker run --rm docker_geth id -u ethereum
-# 출력 예시: 1000 (이 값을 기록)
-
-# 확인된 UID로 디렉토리 소유자 변경
-ETHEREUM_UID=$(docker run --rm docker_geth id -u ethereum)
-sudo chown -R $ETHEREUM_UID:$ETHEREUM_UID /mnt/cryptocur-data/ethereum
+# 권한 설정 (cryptocurrency 사용자는 일반적으로 UID 1000)
+sudo chown -R 1000:1000 /mnt/cryptocur-data/ethereum
 sudo chmod -R 755 /mnt/cryptocur-data/ethereum
-
-# 방법 2: 일반적으로 ethereum 사용자는 UID 1000 (첫 번째 일반 사용자)
-# sudo chown -R 1000:1000 /mnt/cryptocur-data/ethereum
-# sudo chmod -R 755 /mnt/cryptocur-data/ethereum
 
 # 디스크 공간 확인
 df -h /mnt/cryptocur-data
@@ -212,42 +224,30 @@ ls -ld /mnt/cryptocur-data/ethereum
 
 **참고:** `/mnt/cryptocur-data/ethereum` 디렉토리는 Ethereum 블록체인 데이터를 저장하는 위치입니다. 충분한 디스크 공간(최소 1TB 이상)이 있는지 확인하세요.
 
-### 3. 설정 파일 준비
+### 3. 환경 변수 설정 (선택사항)
 
 ```bash
-# 설정 파일 예제 복사
-cp geth.toml.example geth.toml
+# .env 파일 생성 (선택사항)
+cat > .env << EOF
+# 네트워크 모드: mainnet (기본값), goerli, sepolia
+MODE=mainnet
 
-# 설정 파일 편집 (선택사항)
-nano geth.toml
-# 또는
-vi geth.toml
+# Geth P2P 포트
+P2PPORT=30303
+
+# 최대 피어 연결 수
+MAXPEERS=25
+EOF
 ```
 
-**주요 설정 항목:**
-```toml
-# 네트워크 설정
-# mainnet = true  # 메인넷
+**참고:** JWT secret은 Dockerfile에서 자동으로 생성되므로 별도로 생성할 필요가 없습니다.
 
-# HTTP-RPC 설정
-[HTTP]
-Enabled = true
-Addr = "0.0.0.0"
-Port = 8545
-APIs = ["eth", "net", "web3", "admin", "debug"]
-
-# WebSocket-RPC 설정
-[WS]
-Enabled = true
-Addr = "0.0.0.0"
-Port = 8546
-APIs = ["eth", "net", "web3", "admin", "debug"]
-
-# 성능 최적화
-Cache = 4096          # 캐시 크기 (MB)
-SyncMode = "snap"     # 동기화 모드
-MaxPeers = 50         # 최대 피어 수
-```
+**주요 특징:**
+- Geth와 Prysm이 통합된 단일 컨테이너
+- launcher.sh 스크립트가 자동으로 두 레이어를 실행
+- JWT secret 자동 생성 및 공유
+- 환경 변수로 네트워크 모드 설정 (mainnet, goerli, sepolia)
+- Geth가 준비될 때까지 대기 후 Prysm 시작
 
 ### 4. Docker Compose로 노드 실행
 
@@ -266,10 +266,13 @@ docker-compose ps
 
 ```bash
 # 로그 실시간 확인
-docker-compose logs -f geth
+docker-compose logs -f ethereum
 
-# 동기화 상태 확인 (아래 "노드 상태 확인" 섹션 참고)
-docker-compose exec geth geth attach --exec 'eth.syncing'
+# Geth 동기화 상태 확인
+docker-compose exec ethereum ./geth attach --exec 'eth.syncing'
+
+# Prysm 동기화 상태 확인
+curl http://localhost:3500/eth/v1/node/syncing
 ```
 
 **참고:** 초기 동기화는 수일이 소요될 수 있습니다. 진행 상황은 로그에서 확인할 수 있습니다.
@@ -291,62 +294,112 @@ docker ps | grep ethereum
 docker stats ethereum-node
 
 # 컨테이너 로그 확인
-docker-compose logs -f geth
+docker-compose logs -f ethereum
 # 또는 최근 100줄만
-docker-compose logs --tail=100 geth
+docker-compose logs --tail=100 ethereum
+
+# Geth 로그만 확인
+docker-compose logs -f ethereum | grep -i geth
+
+# Prysm 로그만 확인
+docker-compose logs -f ethereum | grep -i prysm
 ```
 
 ### 2. 블록체인 동기화 상태 확인
 
+#### Geth (Execution Layer) 동기화 상태
+
 ```bash
 # 동기화 상태 조회
-docker-compose exec geth geth attach --exec 'eth.syncing'
+docker-compose exec ethereum ./geth attach --exec 'eth.syncing'
 
 # 동기화 중이면 false, 완료되면 false 반환
 # 동기화 중일 때는 현재 블록과 최신 블록 정보 반환
 
 # 최신 블록 번호 확인
-docker-compose exec geth geth attach --exec 'eth.blockNumber'
+docker-compose exec ethereum ./geth attach --exec 'eth.blockNumber'
 
 # 체인 ID 확인
-docker-compose exec geth geth attach --exec 'net.version'
+docker-compose exec ethereum ./geth attach --exec 'net.version'
+
+# 피어 연결 수 확인
+docker-compose exec ethereum ./geth attach --exec 'net.peerCount'
 ```
 
-**동기화 완료 확인:**
+**Geth 동기화 완료 확인:**
 ```bash
 # 동기화 상태 확인
-SYNCING=$(docker-compose exec -T geth geth attach --exec 'eth.syncing')
+SYNCING=$(docker-compose exec -T ethereum ./geth attach --exec 'eth.syncing')
 if [ "$SYNCING" = "false" ]; then
-    echo "동기화 완료"
+    echo "Geth 동기화 완료"
 else
-    echo "동기화 중: $SYNCING"
+    echo "Geth 동기화 중: $SYNCING"
 fi
+```
+
+#### Prysm (Consensus Layer) 동기화 상태
+
+```bash
+# 동기화 상태 확인
+curl http://localhost:3500/eth/v1/node/syncing
+
+# 피어 정보 확인
+curl http://localhost:3500/eth/v1/node/peers
+
+# 노드 정보 확인
+curl http://localhost:3500/eth/v1/node/identity
+
+# 최신 블록 확인
+curl http://localhost:3500/eth/v1/beacon/blocks/head
 ```
 
 ### 3. 네트워크 연결 상태 확인
 
+#### Geth 네트워크 정보
+
 ```bash
 # 피어 연결 수 확인
-docker-compose exec geth geth attach --exec 'net.peerCount'
+docker-compose exec ethereum ./geth attach --exec 'net.peerCount'
 
 # 피어 연결 상세 정보
-docker-compose exec geth geth attach --exec 'admin.peers'
+docker-compose exec ethereum ./geth attach --exec 'admin.peers'
 
 # 네트워크 정보
-docker-compose exec geth geth attach --exec 'admin.nodeInfo'
+docker-compose exec ethereum ./geth attach --exec 'admin.nodeInfo'
+```
+
+#### Prysm 네트워크 정보
+
+```bash
+# 피어 정보 확인
+curl http://localhost:3500/eth/v1/node/peers
+
+# 피어 수 확인
+curl http://localhost:3500/eth/v1/node/peers | jq '.data | length'
+
+# 노드 정보
+curl http://localhost:3500/eth/v1/node/identity
 ```
 
 ### 4. 노드 상태 종합 확인
 
 ```bash
-# 노드가 정상 작동 중인지 확인
-docker-compose exec geth geth attach --exec 'net.listening'
+# Geth 상태 확인
+docker-compose exec ethereum ./geth attach --exec 'net.listening'
+docker-compose exec ethereum ./geth attach --exec 'eth.blockNumber'
 
-# 최신 블록 정보
-docker-compose exec geth geth attach --exec 'eth.blockNumber'
+# Prysm 상태 확인
+curl http://localhost:3500/eth/v1/node/syncing
+curl http://localhost:3500/eth/v1/node/health
 
-# 체인 상태 요약
-docker-compose exec geth geth attach --exec 'eth.getBlock("latest")'
+# 통합 상태 확인 스크립트
+echo "=== Geth Status ==="
+docker-compose exec ethereum ./geth attach --exec 'eth.blockNumber'
+docker-compose exec ethereum ./geth attach --exec 'net.peerCount'
+echo ""
+echo "=== Prysm Status ==="
+curl -s http://localhost:3500/eth/v1/node/syncing | jq '.'
+curl -s http://localhost:3500/eth/v1/node/peers | jq '.data | length' | xargs echo "Peers:"
 ```
 
 ---
@@ -355,19 +408,33 @@ docker-compose exec geth geth attach --exec 'eth.getBlock("latest")'
 
 ### 1. 블록체인 정보 조회
 
-#### 기본 블록체인 정보
+#### Geth (Execution Layer) 정보
+
 ```bash
 # 최신 블록 번호
-docker-compose exec geth geth attach --exec 'eth.blockNumber'
+docker-compose exec ethereum ./geth attach --exec 'eth.blockNumber'
 
 # 특정 블록 정보
-docker-compose exec geth geth attach --exec 'eth.getBlock(eth.blockNumber)'
+docker-compose exec ethereum ./geth attach --exec 'eth.getBlock(eth.blockNumber)'
 
 # 체인 ID
-docker-compose exec geth geth attach --exec 'net.version'
+docker-compose exec ethereum ./geth attach --exec 'net.version'
 
 # 네트워크 ID
-docker-compose exec geth geth attach --exec 'net.version'
+docker-compose exec ethereum ./geth attach --exec 'net.version'
+```
+
+#### Prysm (Consensus Layer) 정보
+
+```bash
+# 최신 블록 정보
+curl http://localhost:3500/eth/v1/beacon/blocks/head
+
+# 최신 상태 정보
+curl http://localhost:3500/eth/v1/beacon/states/head
+
+# 체인 스펙 정보
+curl http://localhost:3500/eth/v1/config/spec
 ```
 
 ### 2. 트랜잭션 정보 조회
@@ -375,32 +442,42 @@ docker-compose exec geth geth attach --exec 'net.version'
 #### 트랜잭션 조회
 ```bash
 # 트랜잭션 정보 조회 (트랜잭션 해시로)
-docker-compose exec geth geth attach --exec 'eth.getTransaction("트랜잭션해시")'
+docker-compose exec ethereum ./geth attach --exec 'eth.getTransaction("트랜잭션해시")'
 
 # 트랜잭션 영수증 조회
-docker-compose exec geth geth attach --exec 'eth.getTransactionReceipt("트랜잭션해시")'
+docker-compose exec ethereum ./geth attach --exec 'eth.getTransactionReceipt("트랜잭션해시")'
 ```
 
 #### 메모리 풀 정보
 ```bash
 # 대기 중인 트랜잭션 수
-docker-compose exec geth geth attach --exec 'txpool.status'
+docker-compose exec ethereum ./geth attach --exec 'txpool.status'
 
 # 대기 중인 트랜잭션 상세 정보
-docker-compose exec geth geth attach --exec 'txpool.content'
+docker-compose exec ethereum ./geth attach --exec 'txpool.content'
 ```
 
 ### 3. 네트워크 정보 조회
 
+#### Geth 네트워크 정보
 ```bash
 # 피어 정보
-docker-compose exec geth geth attach --exec 'admin.peers'
+docker-compose exec ethereum ./geth attach --exec 'admin.peers'
 
 # 네트워크 정보
-docker-compose exec geth geth attach --exec 'admin.nodeInfo'
+docker-compose exec ethereum ./geth attach --exec 'admin.nodeInfo'
 
 # 연결된 피어 수
-docker-compose exec geth geth attach --exec 'net.peerCount'
+docker-compose exec ethereum ./geth attach --exec 'net.peerCount'
+```
+
+#### Prysm 네트워크 정보
+```bash
+# 피어 정보
+curl http://localhost:3500/eth/v1/node/peers
+
+# 노드 정보
+curl http://localhost:3500/eth/v1/node/identity
 ```
 
 ---
@@ -413,7 +490,7 @@ docker-compose exec geth geth attach --exec 'net.peerCount'
 
 ```bash
 # Geth 콘솔 접속
-docker-compose exec geth geth attach
+docker-compose exec ethereum ./geth attach
 
 # 콘솔 내에서:
 # 1. 계정 생성 (또는 기존 계정 사용)
@@ -430,7 +507,7 @@ eth.sendTransaction({
 })
 ```
 
-#### Web3.js 또는 다른 라이브러리 사용
+#### HTTP-RPC를 통한 트랜잭션 전송
 
 ```bash
 # HTTP-RPC를 통해 트랜잭션 전송
@@ -445,20 +522,20 @@ curl -X POST -H "Content-Type: application/json" \
     }],
     "id":1
   }' \
-  http://localhost:8545
+  http://localhost:3002
 ```
 
 ### 2. 트랜잭션 상태 확인
 
 ```bash
 # 트랜잭션 해시로 상태 확인
-docker-compose exec geth geth attach --exec 'eth.getTransaction("트랜잭션해시")'
+docker-compose exec ethereum ./geth attach --exec 'eth.getTransaction("트랜잭션해시")'
 
 # 트랜잭션 영수증 확인 (확인된 경우)
-docker-compose exec geth geth attach --exec 'eth.getTransactionReceipt("트랜잭션해시")'
+docker-compose exec ethereum ./geth attach --exec 'eth.getTransactionReceipt("트랜잭션해시")'
 
 # 트랜잭션이 포함된 블록 확인
-docker-compose exec geth geth attach --exec 'eth.getTransaction("트랜잭션해시").blockNumber'
+docker-compose exec ethereum ./geth attach --exec 'eth.getTransaction("트랜잭션해시").blockNumber'
 ```
 
 ---
@@ -469,16 +546,16 @@ docker-compose exec geth geth attach --exec 'eth.getTransaction("트랜잭션해
 
 ```bash
 # 로그 확인
-docker-compose logs geth
+docker-compose logs ethereum
 
 # 컨테이너 상태 확인
 docker-compose ps -a
 
 # 컨테이너 재시작
-docker-compose restart geth
+docker-compose restart ethereum
 
 # 컨테이너 재생성
-docker-compose up -d --force-recreate geth
+docker-compose up -d --force-recreate ethereum
 ```
 
 ### 2. "executable file not found" 에러
@@ -493,8 +570,7 @@ docker-compose down
 
 # 디렉토리 권한 설정
 sudo mkdir -p /mnt/cryptocur-data/ethereum
-ETHEREUM_UID=$(docker run --rm docker_geth id -u ethereum)
-sudo chown -R $ETHEREUM_UID:$ETHEREUM_UID /mnt/cryptocur-data/ethereum
+sudo chown -R 1000:1000 /mnt/cryptocur-data/ethereum
 sudo chmod -R 755 /mnt/cryptocur-data/ethereum
 
 # 컨테이너 재시작
@@ -504,14 +580,17 @@ docker-compose up -d
 ### 4. 동기화가 느림
 
 ```bash
-# 연결된 피어 수 확인
-docker-compose exec geth geth attach --exec 'net.peerCount'
+# Geth 피어 연결 수 확인
+docker-compose exec ethereum ./geth attach --exec 'net.peerCount'
 
-# 피어 정보 확인
-docker-compose exec geth geth attach --exec 'admin.peers'
+# Geth 피어 정보 확인
+docker-compose exec ethereum ./geth attach --exec 'admin.peers'
 
-# 캐시 증가 (geth.toml 수정 후 재시작)
-# Cache = 8192
+# Prysm 피어 정보 확인
+curl http://localhost:3500/eth/v1/node/peers
+
+# MAXPEERS 환경 변수 증가 (docker-compose.yml 수정 후 재시작)
+# MAXPEERS=50
 ```
 
 ### 5. 디스크 공간 부족
@@ -524,7 +603,7 @@ du -sh /mnt/cryptocur-data/ethereum
 du -h --max-depth=1 /mnt/cryptocur-data/ethereum | sort -hr
 
 # 불필요한 로그 파일 삭제
-docker-compose exec geth find /home/ethereum/.ethereum -name "*.log" -delete
+docker-compose exec ethereum find /var/lib/coindata -name "*.log" -delete
 
 # 또는 호스트에서 직접 삭제
 find /mnt/cryptocur-data/ethereum -name "*.log" -delete
@@ -533,15 +612,68 @@ find /mnt/cryptocur-data/ethereum -name "*.log" -delete
 ### 6. RPC 연결 실패
 
 ```bash
-# RPC 설정 확인
-docker-compose exec geth cat /home/ethereum/.ethereum/geth.toml | grep -A 5 HTTP
+# Geth HTTP-RPC 테스트
+docker-compose exec ethereum ./geth attach --exec 'net.version'
 
-# RPC 테스트
-docker-compose exec geth geth attach --exec 'net.version'
+# Geth HTTP-RPC 포트 확인
+docker-compose exec ethereum netstat -tlnp | grep 3002
 
-# RPC 포트 확인
-docker-compose exec geth netstat -tlnp | grep 8545
+# Geth Engine API 테스트
+curl -X POST http://localhost:3001 \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}'
+
+# Prysm HTTP-RPC 테스트
+curl http://localhost:3500/eth/v1/node/syncing
+
+# Prysm HTTP-RPC 포트 확인
+docker-compose exec ethereum netstat -tlnp | grep 3500
 ```
+
+### 7. Docker 빌드 실패 (404 에러)
+
+**증상:**
+```
+ERROR 404: The specified blob does not exist.
+```
+
+**원인:**
+- Geth 다운로드 URL이 잘못되었거나 파일명이 변경됨
+- GitHub 릴리스의 실제 파일명 형식이 예상과 다름 (커밋 해시 포함 등)
+
+**해결 방법:**
+
+1. **GitHub 릴리스 페이지에서 실제 파일명 확인**:
+   - [https://github.com/ethereum/go-ethereum/releases](https://github.com/ethereum/go-ethereum/releases) 방문
+   - 해당 버전의 Assets 섹션에서 실제 파일명 확인
+
+2. **Dockerfile 수정**:
+   ```dockerfile
+   # 실제 파일명에 맞게 수정
+   # 예: geth-linux-amd64-1.16.7-b9f3a3d.tar.gz (커밋 해시 포함)
+   RUN GETH_COMMIT="b9f3a3d" && \
+       GETH_TARBALL="geth-linux-amd64-${GETH_VERSION}-${GETH_COMMIT}.tar.gz" && \
+       wget https://github.com/ethereum/go-ethereum/releases/download/v${GETH_VERSION}/${GETH_TARBALL}
+   ```
+
+3. **대안: 공식 다운로드 페이지 사용**:
+   ```dockerfile
+   # 공식 다운로드 페이지에서 다운로드
+   RUN wget https://geth.ethereum.org/downloads/geth-linux-amd64-${GETH_VERSION}.tar.gz
+   ```
+
+4. **수동 다운로드 후 빌드**:
+   ```bash
+   # 호스트에서 수동으로 다운로드
+   wget https://github.com/ethereum/go-ethereum/releases/download/v1.16.7/geth-linux-amd64-1.16.7-b9f3a3d.tar.gz
+   
+   # Dockerfile에서 로컬 파일 사용하도록 수정
+   COPY geth-linux-amd64-1.16.7-b9f3a3d.tar.gz /tmp/
+   RUN tar -xzf /tmp/geth-linux-amd64-1.16.7-b9f3a3d.tar.gz && \
+       install -m 0755 -o root -g root geth /usr/local/bin/
+   ```
+
+**참고**: 현재 Dockerfile은 여러 URL을 시도하는 fallback 방식을 사용하므로 대부분의 경우 자동으로 해결됩니다.
 
 ---
 
@@ -560,9 +692,17 @@ docker-compose exec geth netstat -tlnp | grep 8545
 
 1. ✅ **설치 전 시스템 확인**: 하드웨어, 네트워크, 포트, Docker 확인
 2. ✅ **Docker 설치 및 설정**: Docker 및 Docker Compose 설치
-3. ✅ **Ethereum 노드 설치**: Docker Compose를 사용한 노드 설치
-4. ✅ **노드 상태 확인**: 동기화 상태, 네트워크 연결, 컨테이너 상태 확인
-5. ✅ **정보 조회**: 블록체인, 트랜잭션, 네트워크 정보 조회
+3. ✅ **Ethereum 통합 노드 설치**: Geth (Execution Layer) + Prysm (Consensus Layer) 통합 설치
+4. ✅ **노드 상태 확인**: Geth와 Prysm 동기화 상태, 네트워크 연결, 컨테이너 상태 확인
+5. ✅ **정보 조회**: 블록체인, 트랜잭션, 네트워크 정보 조회 (Geth 및 Prysm)
 6. ✅ **트랜잭션 브로드캐스팅**: 트랜잭션 생성 및 브로드캐스팅 방법
 
-이 가이드를 따라하면 Linux 서버에서 Ethereum 노드를 성공적으로 설치하고 운영할 수 있습니다.
+### 주요 특징
+
+- **통합 노드**: Geth와 Prysm이 하나의 컨테이너에서 실행
+- **자동 실행**: launcher.sh 스크립트가 두 레이어를 자동으로 실행
+- **JWT 자동 생성**: JWT secret이 자동으로 생성되어 두 레이어 간 통신
+- **환경 변수 기반**: 네트워크 모드와 설정을 환경 변수로 제어
+- **안전한 종료**: SIGTERM/SIGINT 신호를 받으면 두 프로세스를 안전하게 종료
+
+이 가이드를 따라하면 Linux 서버에서 완전한 Ethereum 노드(Geth + Prysm)를 성공적으로 설치하고 운영할 수 있습니다.

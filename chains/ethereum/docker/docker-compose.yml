@@ -1,54 +1,44 @@
 version: '3.3'
 
 services:
-  geth:
+  ethereum:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        GIT_VERSION: ${GIT_VERSION:-latest}
     container_name: ethereum-node
     restart: unless-stopped
     ports:
-      # P2P network port (TCP)
+      # Geth P2P network port (TCP)
       - "30303:30303/tcp"
-      # P2P network port (UDP)
+      # Geth P2P network port (UDP)
       - "30303:30303/udp"
-      # HTTP-RPC port (exposed to localhost only)
-      - "127.0.0.1:8545:8545"
-      # WebSocket-RPC port (exposed to localhost only)
-      - "127.0.0.1:8546:8546"
+      # Geth Engine API port (internal, for Prysm communication)
+      - "127.0.0.1:3001:3001"
+      # Geth HTTP-RPC port (exposed to localhost only)
+      - "127.0.0.1:3002:3002"
+      # Prysm P2P network port (TCP)
+      - "13000:13000/tcp"
+      # Prysm P2P network port (UDP)
+      - "13000:13000/udp"
+      # Prysm gRPC port (exposed to localhost only)
+      - "127.0.0.1:4000:4000"
+      # Prysm HTTP-RPC port (exposed to localhost only)
+      - "127.0.0.1:3500:3500"
     volumes:
       # Persistent storage for blockchain data
       # IMPORTANT: Make sure /mnt/cryptocur-data/ethereum directory exists and has proper permissions
       # Run: sudo mkdir -p /mnt/cryptocur-data/ethereum
-      # Run: ETHEREUM_UID=$(docker run --rm docker_geth id -u ethereum) && sudo chown -R $ETHEREUM_UID:$ETHEREUM_UID /mnt/cryptocur-data/ethereum
-      - /mnt/cryptocur-data/ethereum:/home/ethereum/.ethereum
-      # Configuration file mount (optional, only if file exists)
-      - ./geth.toml:/home/ethereum/.ethereum/geth.toml:ro
+      # Run: sudo chown -R 1000:1000 /mnt/cryptocur-data/ethereum
+      - /mnt/cryptocur-data/ethereum:/var/lib/coindata
     environment:
-      # Environment variables (used if config file is not available)
-      ETHEREUM_NETWORK: ${ETHEREUM_NETWORK:-mainnet}
-    command:
-      # Execute geth with options
-      - geth
-      # Basic options
-      - --config=/home/ethereum/.ethereum/geth.toml
-      # If config file is not available, use command line options below
-      - --mainnet
-      - --datadir=/home/ethereum/.ethereum
-      - --http
-      - --http.addr=0.0.0.0
-      - --http.port=8545
-      - --http.api=eth,net,web3,admin,debug
-      - --http.corsdomain=*
-      - --http.vhosts=*
-      - --ws
-      - --ws.addr=0.0.0.0
-      - --ws.port=8546
-      - --ws.api=eth,net,web3,admin,debug
-      - --ws.origins=*
-      - --syncmode=snap
-      - --cache=4096
-      - --maxpeers=50
+      # P2P port for Geth (required)
+      P2PPORT: ${P2PPORT:-30303}
+      # Network mode: mainnet (default), goerli, sepolia
+      MODE: ${MODE:-mainnet}
+      # Maximum peer connections
+      MAXPEERS: ${MAXPEERS:-25}
     networks:
       - ethereum-network
     # Resource limits (optional)
@@ -62,12 +52,6 @@ services:
     #     reservations:
     #       cpus: '4'
     #       memory: 8G
-
-# volumes:
-#   ethereum-data:
-#     # Using bind mount to /mnt/cryptocur-data/ethereum
-#     # Data will be stored in /mnt/cryptocur-data/ethereum on the host
-#     # Make sure the directory exists and has proper permissions before starting
 
 networks:
   ethereum-network:

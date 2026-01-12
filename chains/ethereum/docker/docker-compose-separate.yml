@@ -1,0 +1,165 @@
+version: '3.3'
+
+# launcher.sh 없이 실행하는 방법
+# 방법 2: 두 서비스로 분리 (Geth와 Prysm을 별도 서비스로)
+# 이 방법은 각 서비스를 독립적으로 관리할 수 있습니다.
+
+services:
+  # Geth (Execution Layer)
+  geth:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        GIT_VERSION: ${GIT_VERSION:-latest}
+    container_name: ethereum-geth
+    restart: unless-stopped
+    ports:
+      # Geth P2P network port (TCP)
+      - "30303:30303/tcp"
+      # Geth P2P network port (UDP)
+      - "30303:30303/udp"
+      # Geth Engine API port (Prysm과 통신용)
+      - "127.0.0.1:3001:3001"
+      # Geth HTTP-RPC port
+      - "127.0.0.1:3002:3002"
+    volumes:
+      - /mnt/cryptocur-data/ethereum:/var/lib/coindata
+      # JWT secret을 공유하기 위한 볼륨
+      - jwt-secret:/opt/ethereum/jwt
+    environment:
+      P2PPORT: ${P2PPORT:-30303}
+      MODE: ${MODE:-mainnet}
+      MAXPEERS: ${MAXPEERS:-25}
+    networks:
+      - ethereum-network
+    # Geth만 실행
+    command: >
+      bash -c "
+      set -e;
+      
+      if [ -z \"$$P2PPORT\" ]; then 
+        echo 'P2PPORT envvar is required' && exit 1;
+      fi;
+      
+      # 네트워크 모드에 따른 옵션 설정
+      if [ \"$$MODE\" = \"mainnet\" ] || [ \"$$MODE\" = \"\" ]; then
+        GETH_OPTIONS='--mainnet --syncmode snap --gcmode archive --cache 16000';
+      elif [ \"$$MODE\" = \"goerli\" ]; then
+        GETH_OPTIONS=\"--$$MODE --syncmode snap --gcmode archive\";
+      elif [ \"$$MODE\" = \"sepolia\" ]; then
+        GETH_OPTIONS='--sepolia --syncmode snap --gcmode archive';
+      fi;
+      
+      # JWT secret 생성 (없으면)
+      if [ ! -f \"/opt/ethereum/jwt/jwt.hex\" ] || [ ! -s \"/opt/ethereum/jwt/jwt.hex\" ]; then
+        echo \"Generating JWT secret...\";
+        ./beacon-chain generate-auth-secret --output-file /opt/ethereum/jwt/jwt.hex;
+        chmod 664 /opt/ethereum/jwt/jwt.hex;
+      fi;
+      
+      # 권한 설정
+      set +e;
+      chown -R $$DAEMONUSER:$$DAEMONUSER $$WORKDIR $$DATADIR;
+      set -e;
+      
+      # Geth 실행
+      echo \"Starting Geth with options: $$GETH_OPTIONS\";
+      exec gosu $$DAEMONUSER ./geth $$GETH_OPTIONS \
+        --maxpeers=$$MAXPEERS \
+        --datadir $$DATADIR \
+        --port $$P2PPORT \
+        --log.rotate \
+        --authrpc.vhosts=localhost --authrpc.port=3001 --authrpc.jwtsecret /opt/ethereum/jwt/jwt.hex \
+        --http --http.addr=0.0.0.0 --http.port=3002 --http.corsdomain=* --http.vhosts=* --http.api debug,web3,eth,txpool,net \
+        --txpool.globalslots 65536 --txpool.accountslots 65536 --txpool.globalqueue 65536 --txpool.accountqueue 65536 \
+        --txlookuplimit=2350000;
+      "
+
+  # Prysm (Consensus Layer)
+  prysm:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        GIT_VERSION: ${GIT_VERSION:-latest}
+    container_name: ethereum-prysm
+    restart: unless-stopped
+    depends_on:
+      - geth
+    ports:
+      # Prysm P2P network port (TCP)
+      - "13000:13000/tcp"
+      # Prysm P2P network port (UDP)
+      - "13000:13000/udp"
+      # Prysm gRPC port
+      - "127.0.0.1:4000:4000"
+      # Prysm HTTP-RPC port
+      - "127.0.0.1:3500:3500"
+    volumes:
+      - /mnt/cryptocur-data/ethereum:/var/lib/coindata
+      # JWT secret 공유
+      - jwt-secret:/opt/ethereum/jwt
+    environment:
+      MODE: ${MODE:-mainnet}
+    networks:
+      - ethereum-network
+    # Prysm만 실행
+    command: >
+      bash -c "
+      set -e;
+      
+      # 네트워크 모드에 따른 옵션 설정
+      if [ \"$$MODE\" = \"mainnet\" ] || [ \"$$MODE\" = \"\" ]; then
+        GENESIS_URL='https://github.com/eth-clients/eth2-networks/raw/master/shared/mainnet/genesis.ssz';
+        PRYSM_OPTIONS='--mainnet --checkpoint-sync-url=https://beaconstate.info --genesis-beacon-api-url=https://beaconstate.info';
+      elif [ \"$$MODE\" = \"goerli\" ]; then
+        GENESIS_URL='https://github.com/eth-clients/eth2-networks/raw/master/shared/prater/genesis.ssz';
+        PRYSM_OPTIONS=\"--$$MODE\";
+      elif [ \"$$MODE\" = \"sepolia\" ]; then
+        GENESIS_URL='https://github.com/eth-clients/merge-testnets/raw/main/sepolia/genesis.ssz';
+        PRYSM_OPTIONS='--terminal-total-difficulty-override 17000000000000000 --sepolia --checkpoint-sync-url=https://checkpoint-sync.sepolia.ethpandaops.io --genesis-beacon-api-url=https://checkpoint-sync.sepolia.ethpandaops.io/';
+      fi;
+      
+      # genesis.ssz 다운로드
+      if [ ! -f \"genesis.ssz\" ]; then
+        echo \"Downloading genesis.ssz from $$GENESIS_URL\";
+        wget -O genesis.ssz $$GENESIS_URL;
+      fi;
+      
+      # Geth가 준비될 때까지 대기
+      echo \"Waiting for Geth to be ready...\";
+      while true; do
+        sleep 5;
+        http_status=$$(curl -IsS --head \"http://geth:3001\" 2>/dev/null | head -n 1 | cut -d' ' -f2);
+        if [[ ! \"$$http_status\" =~ ^[0-9]+$$ ]]; then
+          http_status=0;
+        fi;
+        if (( http_status >= 100 && http_status < 500 )); then
+          echo \"Geth is ready (HTTP Status $$http_status).\";
+          break;
+        fi;
+      done;
+      
+      # 권한 설정
+      set +e;
+      chown -R $$DAEMONUSER:$$DAEMONUSER $$WORKDIR $$DATADIR;
+      set -e;
+      
+      # Prysm 실행
+      echo \"Starting Prysm Beacon Chain with options: $$PRYSM_OPTIONS\";
+      exec gosu $$DAEMONUSER ./beacon-chain $$PRYSM_OPTIONS \
+        --datadir $$DATADIR \
+        --execution-endpoint=http://geth:3001 \
+        --jwt-secret=/opt/ethereum/jwt/jwt.hex \
+        --genesis-state=genesis.ssz \
+        --accept-terms-of-use;
+      "
+
+volumes:
+  # JWT secret을 공유하기 위한 볼륨
+  jwt-secret:
+
+networks:
+  ethereum-network:
+    driver: bridge

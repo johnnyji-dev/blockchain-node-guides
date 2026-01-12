@@ -14,6 +14,9 @@ services:
       - "127.0.0.1:8332:8332"
     volumes:
       # Persistent storage for blockchain data
+      # IMPORTANT: Make sure /mnt/cryptocur-data/bitcoin directory exists and has proper permissions
+      # Run: sudo mkdir -p /mnt/cryptocur-data/bitcoin
+      # Run: BITCOIN_UID=$(docker run --rm docker_bitcoind id -u bitcoin) && sudo chown -R $BITCOIN_UID:$BITCOIN_UID /mnt/cryptocur-data/bitcoin
       - /mnt/cryptocur-data/bitcoin:/home/bitcoin/.bitcoin
       # Configuration file mount (optional, only if file exists)
       - ./bitcoin.conf:/home/bitcoin/.bitcoin/bitcoin.conf:ro

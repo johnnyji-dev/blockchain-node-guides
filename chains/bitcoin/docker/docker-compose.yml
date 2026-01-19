@@ -10,8 +10,9 @@ services:
     ports:
       # P2P network port
       - "8333:8333"
-      # RPC port (exposed to localhost only)
-      - "127.0.0.1:8332:8332"
+      # RPC port (exposed to all interfaces for external access)
+      # ⚠️ 보안: rpcallowip로 접근 IP를 제한하세요
+      - "8332:8332"
     volumes:
       # Persistent storage for blockchain data
       # IMPORTANT: Make sure /mnt/cryptocur-data/bitcoin directory exists and has proper permissions

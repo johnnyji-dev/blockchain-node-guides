@@ -38,6 +38,15 @@ services:
       - -rpcpassword=${BITCOIN_RPC_PASSWORD:-changeme}
       - -rpcbind=0.0.0.0
       - -rpcallowip=127.0.0.1
+    healthcheck:
+      # Use cookie file (more secure) - bitcoind automatically creates .cookie when RPC is enabled
+      # Cookie file is created at /home/bitcoin/.bitcoin/.cookie
+      # Alternative: Use environment variables via shell script: /bin/bash -c "bitcoin-cli -rpcuser=${BITCOIN_RPC_USER} -rpcpassword=${BITCOIN_RPC_PASSWORD} getblockchaininfo"
+      test: ["CMD-SHELL", "bitcoin-cli -rpccookiefile=/home/bitcoin/.bitcoin/.cookie getblockchaininfo 2>/dev/null || bitcoin-cli -rpcuser=${BITCOIN_RPC_USER} -rpcpassword=${BITCOIN_RPC_PASSWORD} getblockchaininfo || exit 1"]
+      interval: 60s
+      timeout: 10s
+      start_period: 300s
+      retries: 3
     networks:
       - bitcoin-network
     # Resource limits (optional)

@@ -30,12 +30,56 @@ docker-compose ps
 
 ### 3. 노드 상태 확인
 
+#### Docker 컨테이너 상태
+
+```bash
+# 컨테이너 상태 확인
+docker ps -a
+
+# 컨테이너 리소스 사용량 확인
+docker stats bitcoin-node
+
+# 컨테이너 로그 확인
+docker logs -f bitcoin-node
+```
+
+#### Bitcoin 노드 상태 확인
+
 ```bash
 # 컨테이너 내부에서 실행
 docker-compose exec bitcoind bitcoin-cli getblockchaininfo
 
 # 또는 호스트에서 직접 실행 (RPC 포트가 노출된 경우)
 bitcoin-cli -rpcuser=bitcoin -rpcpassword=your_password -rpcport=8332 getblockchaininfo
+```
+
+#### 주요 상태 확인 명령어
+
+```bash
+# 블록체인 정보 (동기화 상태, 블록 높이 등)
+docker exec bitcoin-node bitcoin-cli getblockchaininfo
+
+# 네트워크 정보 (피어 연결 수 등)
+docker exec bitcoin-node bitcoin-cli getnetworkinfo
+
+# 피어 연결 상태
+docker exec bitcoin-node bitcoin-cli getpeerinfo
+
+# 현재 블록 높이 확인
+docker exec bitcoin-node bitcoin-cli getblockcount
+
+# 동기화 완료 여부 확인
+docker exec bitcoin-node bitcoin-cli getblockchaininfo | grep -E "blocks|verificationprogress"
+```
+
+#### 헬스체크 상태 확인
+
+```bash
+# 헬스체크 상태 확인 (unhealthy 상태 진단 시 유용)
+docker inspect --format='{{json .State.Health}}' bitcoin-node | jq
+
+# 헬스체크 실패 시 RPC 응답 확인
+docker exec bitcoin-node bitcoin-cli getblockchaininfo
 ```
 
 ## 파일 구조

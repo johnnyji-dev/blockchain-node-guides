@@ -173,7 +173,7 @@ nano bitcoin.conf
 
 ## 상세 가이드
 
-자세한 내용은 [docker-readme.md](./docker-readme.md)를 참고하세요.
+자세한 내용은 [docs/docker/docker-readme.md](./docs/docker/docker-readme.md)를 참고하세요.
 
 ## Localhost 설치
 

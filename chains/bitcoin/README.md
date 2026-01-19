@@ -34,20 +34,32 @@ Docker를 사용하여 Bitcoin Core를 컨테이너로 실행하는 방법입니
 ```
 bitcoin/
 ├── README.md                    # 이 파일
-├── localhost/                    # 호스트 직접 설치 가이드
+├── localhost/                   # 호스트 직접 설치 가이드
 │   ├── README.md
-│   ├── installation.md           # 설치 가이드
-│   ├── configuration.md           # 설정 가이드
-│   ├── troubleshooting.md        # 트러블슈팅 가이드
-│   └── updates/                  # 업데이트 로그
-│       └── README.md
-└── docker/                       # Docker 설치 가이드
-    ├── README.md
-    ├── Dockerfile                # Docker 이미지 빌드 파일
-    ├── docker-compose.yml        # Docker Compose 설정
-    ├── docker-readme.md          # 상세 Docker 가이드
-    ├── bitcoin.conf.example      # 설정 파일 예제
-    └── .dockerignore             # Docker 빌드 제외 파일
+│   ├── bitcoin.conf.example      # 설정 파일 예제
+│   ├── updates/                  # 업데이트 로그
+│   │   └── README.md
+│   └── docs/                     # 상세 문서
+│       ├── installation.md        # 설치 가이드
+│       ├── configuration.md       # 설정 가이드
+│       └── troubleshooting.md     # 트러블슈팅 가이드
+├── docker/                       # Docker 설치 가이드
+│   ├── README.md
+│   ├── Dockerfile                # Docker 이미지 빌드 파일
+│   ├── docker-compose.yml        # Docker Compose 설정
+│   ├── bitcoin.conf.example      # 설정 파일 예제
+│   ├── env-example.txt           # 환경 변수 예제
+│   ├── healthcheck.sh            # 헬스체크 스크립트
+│   └── docs/                     # 상세 문서
+│       ├── docker-readme.md      # 상세 Docker 가이드
+│       ├── CURL-COMMANDS.md      # cURL 명령어 가이드
+│       ├── RPC-CONFIG-GUIDE.md   # RPC 설정 가이드
+│       ├── inspect-analysis.md   # Docker inspect 분석
+│       ├── log-analysis.md       # 로그 분석 가이드
+│       ├── container-remove-troubleshooting.md
+│       ├── lock-file-troubleshooting.md
+│       └── leveldb-lock-troubleshooting.md
+└── docs/                         # 공통 문서 (선택사항)
 ```
 
 ## 하드웨어 요구사항

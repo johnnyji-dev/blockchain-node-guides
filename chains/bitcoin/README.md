@@ -50,15 +50,11 @@ bitcoin/
 │   ├── bitcoin.conf.example      # 설정 파일 예제
 │   ├── env-example.txt           # 환경 변수 예제
 │   ├── healthcheck.sh            # 헬스체크 스크립트
-│   └── docs/                     # 상세 문서
-│       ├── docker-readme.md      # 상세 Docker 가이드
-│       ├── CURL-COMMANDS.md      # cURL 명령어 가이드
-│       ├── RPC-CONFIG-GUIDE.md   # RPC 설정 가이드
-│       ├── inspect-analysis.md   # Docker inspect 분석
-│       ├── log-analysis.md       # 로그 분석 가이드
-│       ├── container-remove-troubleshooting.md
-│       ├── lock-file-troubleshooting.md
-│       └── leveldb-lock-troubleshooting.md
+│   └── (참고) 상세 문서는 `../docs/docker/`로 통합
+├── docs/                         # Docker 상세 문서(통합)
+│   └── docker/
+│       ├── README.md             # Docker 운영/트러블슈팅 통합
+│       └── RPC.md                # RPC/curl/외부접속/보안 통합
 └── docs/                         # 공통 문서 (선택사항)
 ```
 

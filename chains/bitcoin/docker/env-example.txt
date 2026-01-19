@@ -1,0 +1,12 @@
+# Bitcoin Docker 환경 변수 설정 예제
+# 이 파일을 .env로 복사하여 사용하세요
+# 또는 환경 변수로 export 해서 사용하세요
+
+# RPC 인증 정보
+# ⚠️ 보안: 실제 사용 시 강력한 비밀번호로 변경하세요!
+BITCOIN_RPC_USER=bitcoin
+BITCOIN_RPC_PASSWORD=changeme
+
+# 사용 방법:
+# 1. .env 파일로 사용: cp env-example.txt .env
+# 2. 환경 변수로 사용: export BITCOIN_RPC_USER=bitcoin && export BITCOIN_RPC_PASSWORD=your_password

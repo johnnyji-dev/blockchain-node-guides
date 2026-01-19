@@ -47,8 +47,10 @@ USER ${BITCOIN_USER}
 WORKDIR ${BITCOIN_DATA_DIR}
 
 # Healthcheck configuration
+# Note: Healthcheck in Dockerfile will be overridden by docker-compose.yml
+# Using cookie file method (more secure) - bitcoind automatically creates .cookie file
 HEALTHCHECK --interval=60s --timeout=10s --start-period=300s --retries=3 \
-    CMD bitcoin-cli getblockchaininfo || exit 1
+    CMD bitcoin-cli -rpccookiefile=/home/bitcoin/.bitcoin/.cookie getblockchaininfo 2>/dev/null || exit 1
 
 # Default command
 # Configuration file should be mounted via docker-compose or at runtime

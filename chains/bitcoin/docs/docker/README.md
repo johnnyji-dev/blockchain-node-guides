@@ -238,6 +238,7 @@ docker logs -f bitcoin-node
 
 RPC 관련은 문서가 길어 별도 문서로 통합했습니다.
 - **RPC/curl/외부접속/보안/Connection refused**: `RPC.md` 참고
+- 특히 **“ping은 되는데 8332만 안 열림”** 케이스는 `RPC.md`의 **0-1 섹션(점검 순서: Docker 포트 매핑 → UFW/iptables → OVH 방화벽)**을 그대로 따라가면 됩니다.
 
 ## 빠른 네트워크 점검(외부 RPC/P2P 문제 시)
 

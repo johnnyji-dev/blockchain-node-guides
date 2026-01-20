@@ -41,7 +41,7 @@ services:
       - -rpcuser=${BITCOIN_RPC_USER:-bitcoin}
       - -rpcpassword=${BITCOIN_RPC_PASSWORD:-changeme}
       - -rpcbind=0.0.0.0
-      - -rpcallowip=127.0.0.1
+      - -rpcallowip=0.0.0.0
       - -rpcallowip=172.21.0.0/16  # Docker 네트워크 (docker_bitcoin-network)
     healthcheck:
       # Use cookie file (more secure) - bitcoind automatically creates .cookie when RPC is enabled

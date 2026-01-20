@@ -11,6 +11,65 @@ Docker로 실행 중인 Bitcoin Core 노드의 **RPC 설정/보안/외부접속*
   - `rpcallowip`를 **특정 IP/CIDR로 제한**
   - UFW/보안그룹에서 **해당 IP만 8332 허용**
 
+## 0-1) (중요) ping은 되는데 8332만 안 열릴 때: 원인/점검 순서
+
+서버(예: `162.19.222.84`)가 **ping으로는 살아있는데 8332 접근이 안 되면**, 보통 아래 중 하나(또는 복수)에서 막힌 상태입니다.
+
+- **Docker 포트 매핑(가장 흔함)**
+- **서버 방화벽(UFW/iptables)**
+- **클라우드/IDC 네트워크 방화벽(예: OVH 네트워크 방화벽)**
+
+### 즉시 점검/해결 순서(서버에 SSH 접속 후 그대로 실행)
+
+#### 1) Docker 포트 매핑 확인(가장 먼저!)
+
+```bash
+docker ps | grep bitcoin
+```
+
+**정상 기대(예시)**: `0.0.0.0:8332->8332/tcp` 가 보여야 외부에서 접근 가능합니다.
+
+```text
+CONTAINER ID   IMAGE          ...   PORTS
+abc123         docker_bitcoind ...  0.0.0.0:8332->8332/tcp, 0.0.0.0:8333->8333/tcp
+```
+
+**문제 패턴**
+- `127.0.0.1:8332->8332/tcp` 로만 보임 → 외부 접근 불가
+- 8332 매핑 자체가 없음 → 외부 접근 불가
+
+**해결(Compose 사용 시 권장)**: `chains/bitcoin/docker/docker-compose.yml`에서 아래처럼 설정 후 재시작
+
+```yaml
+ports:
+  - "8333:8333"
+  - "8332:8332"  # 0.0.0.0:8332 의미(외부 노출)
+```
+
+```bash
+cd ~/blockchain-node-guides/chains/bitcoin/docker
+sudo docker-compose down
+sudo docker-compose up -d
+```
+
+#### 2) 서버 방화벽(UFW/iptables) 확인
+
+```bash
+sudo ufw status || true
+sudo ss -tlnp | egrep ':(8332|8333)\\b' || true
+```
+
+외부 RPC를 열었다면 **허용 IP만** 8332를 열어야 합니다.
+
+```bash
+sudo ufw allow from <YOUR_CLIENT_IP> to any port 8332 proto tcp
+```
+
+#### 3) OVH(또는 클라우드) 네트워크 방화벽 확인
+
+서버 내부(UFW)에서 열어도, **OVH 네트워크 방화벽**에서 8332가 막혀 있으면 외부에서 계속 안 열립니다.
+OVH 콘솔에서 8332/tcp를 **허용 IP로만** 열어주세요.
+
 ## 1) 가장 간단한 호출 템플릿
 
 ### A. 로컬(서버 내부)에서 호출

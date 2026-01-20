@@ -189,7 +189,7 @@ Error: Cannot obtain a lock on data directory /home/bitcoin/.bitcoin. Bitcoin Co
 cd ~/blockchain-node-guides/chains/bitcoin/docker
 docker-compose down
 
-ubuntu@node1:~/blockchain-node-guides/chains/bitcoin/docker$ docker-compose down
+ubuntu@node1:~/blockchain-node-guides/chains/bitcoin/docker$ sudo docker-compose down
 Stopping bitcoin-node ... done
 Removing bitcoin-node ... done
 Removing network docker_bitcoin-network

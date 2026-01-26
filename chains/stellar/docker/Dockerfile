@@ -37,10 +37,17 @@ RUN apt-get update && \
     ca-certificates \
     gosu \
     postgresql-client \
-    clang-18 \
-    libc++-18-dev \
-    libc++abi-18-dev \
+    software-properties-common \
+    gnupg \
     && apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# LLVM/Clang 저장소 추가 및 설치
+RUN wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key | tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc && \
+    add-apt-repository -y "deb http://apt.llvm.org/noble/ llvm-toolchain-noble-18 main" && \
+    apt-get update && \
+    apt-get install -y clang-18 libc++-18-dev libc++abi-18-dev && \
+    apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
 # Rust 설치 (stellar-core 빌드에 필요)

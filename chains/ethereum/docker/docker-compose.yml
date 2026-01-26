@@ -15,9 +15,9 @@ services:
       # Geth P2P network port (UDP)
       - "30313:30313/udp"
       # Geth Engine API port (internal, for Prysm communication)
-      - "127.0.0.1:3011:3011"
+      - "0.0.0.0:3011:3011"
       # Geth HTTP-RPC port (exposed to localhost only)
-      - "127.0.0.1:3012:3012"
+      - "0.0.0.0:3012:3012"
       # Prysm P2P network port (TCP)
       - "13010:13010/tcp"
       # Prysm P2P network port (UDP)

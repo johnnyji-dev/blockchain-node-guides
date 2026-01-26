@@ -35,10 +35,12 @@ services:
     ports:
       # stellar-core P2P network port (TCP/UDP)
       - "11625:11625"
-      # stellar-core HTTP port (exposed to localhost only)
-      - "127.0.0.1:11626:11626"
-      # horizon API port (exposed to localhost only)
-      - "127.0.0.1:8000:8000"
+      # stellar-core HTTP port (exposed to all interfaces for external access)
+      # ⚠️ 보안: 외부 접근이 필요할 때만 전체 노출, 방화벽으로 IP 제한 권장
+      - "0.0.0.0:11626:11626"
+      # horizon API port (exposed to all interfaces for external access)
+      # ⚠️ 보안: 외부 접근이 필요할 때만 전체 노출, 방화벽으로 IP 제한 권장
+      - "0.0.0.0:8100:8000"
     volumes:
       # Persistent storage for blockchain data
       # IMPORTANT: Make sure /mnt/cryptocur-data/stellar directory exists and has proper permissions

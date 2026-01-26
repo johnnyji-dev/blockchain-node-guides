@@ -1,0 +1,29 @@
+# Git
+.git
+.gitignore
+
+# Documentation
+*.md
+README*
+docs/
+
+# Docker
+docker-compose*.yml
+.dockerignore
+
+# Environment
+.env
+.env.*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db

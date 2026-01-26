@@ -5,8 +5,8 @@ FROM ubuntu:24.04
 
 # 환경변수 설정
 ARG GIT_VERSION
-ENV STELLAR_CORE_VERSION=v22.0.0
-ENV HORIZON_VERSION=v2.32.0
+ENV STELLAR_CORE_VERSION=v25.1.0
+ENV HORIZON_VERSION=v25.0.0
 ENV GO_VERSION=1.23.5
 ENV WORKDIR=/opt/stellar
 ENV DATADIR=/var/lib/stellar
@@ -85,11 +85,11 @@ RUN git clone --depth 1 --branch ${STELLAR_CORE_VERSION} https://github.com/stel
     rm -rf stellar-core-build
 
 # horizon 빌드
-RUN git clone --depth 1 --branch ${HORIZON_VERSION} https://github.com/stellar/go.git stellar-go && \
-    cd stellar-go && \
-    go build -o /usr/local/bin/horizon ./services/horizon && \
+RUN git clone --depth 1 --branch ${HORIZON_VERSION} https://github.com/stellar/stellar-horizon.git stellar-horizon && \
+    cd stellar-horizon && \
+    go build -o /usr/local/bin/horizon . && \
     cd .. && \
-    rm -rf stellar-go
+    rm -rf stellar-horizon
 
 # 설정 파일 복사
 COPY --chown=$DAEMONUSER:$DAEMONUSER stellar-core.cfg $WORKDIR/

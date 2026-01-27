@@ -35,8 +35,8 @@ services:
       - "0.0.0.0:11626:11626"
     volumes:
       - /mnt/cryptocur-data/stellar/core:/data
-      - ./stellar-core-official.cfg:/etc/stellar/stellar-core.cfg:ro
-    command: ["stellar-core", "run", "--conf", "/etc/stellar/stellar-core.cfg"]
+      - ./stellar-core-official.cfg:/stellar-core.cfg:ro
+    command: ["run", "--conf", "/stellar-core.cfg"]
     networks:
       - stellar-network
     security_opt:
@@ -54,15 +54,19 @@ services:
     ports:
       # horizon API port (외부 접근)
       - "0.0.0.0:8100:8000"
+    volumes:
+      - ./stellar-core-official.cfg:/stellar-core.cfg:ro
     environment:
       DATABASE_URL: "postgres://${POSTGRES_USER:-stellar}:${POSTGRES_PASSWORD:-stellarpassword}@postgres/stellar_horizon?sslmode=disable"
-      STELLAR_CORE_DATABASE_URL: "postgres://${POSTGRES_USER:-stellar}:${POSTGRES_PASSWORD:-stellarpassword}@postgres/stellar_core?sslmode=disable"
       STELLAR_CORE_URL: "http://stellar-core:11626"
       NETWORK_PASSPHRASE: "Public Global Stellar Network ; September 2015"
       HISTORY_ARCHIVE_URLS: "https://history.stellar.org/prd/core-live/core_live_001,https://history.stellar.org/prd/core-live/core_live_002,https://history.stellar.org/prd/core-live/core_live_003"
       INGEST: "true"
       PORT: "8000"
       LOG_LEVEL: "info"
+      # Captive core 설정
+      CAPTIVE_CORE_CONFIG_PATH: "/stellar-core.cfg"
+      ENABLE_CAPTIVE_CORE_INGESTION: "true"
     networks:
       - stellar-network
     security_opt:

@@ -1,5 +1,6 @@
 # Stellar Node Dockerfile
 # stellar-core (Core Node) + horizon (API Server) 통합 이미지
+# Based on official stellar-core installation guide
 
 FROM ubuntu:24.04
 
@@ -8,6 +9,7 @@ ARG GIT_VERSION
 ENV STELLAR_CORE_VERSION=v25.1.0
 ENV HORIZON_VERSION=v25.0.0
 ENV GO_VERSION=1.23.5
+ENV RUST_VERSION=1.74.0
 ENV WORKDIR=/opt/stellar
 ENV DATADIR=/var/lib/stellar
 ENV DAEMONUSER=stellar
@@ -17,7 +19,7 @@ LABEL BC_NODE_VERSION=$STELLAR_CORE_VERSION
 LABEL BC_NODE_GIT_VERSION=$GIT_VERSION
 LABEL BC_NODE_TICKER=xlm
 
-# 우분투 패키지 설치
+# 기본 패키지 설치 (공식 문서 기준)
 RUN apt-get update && \
     apt-get -y upgrade && \
     apt-get install -y \
@@ -31,6 +33,10 @@ RUN apt-get update && \
     flex \
     libpq-dev \
     libunwind-dev \
+    libgoogle-perftools-dev \
+    parallel \
+    sed \
+    perl \
     wget \
     curl \
     openssl \
@@ -42,16 +48,21 @@ RUN apt-get update && \
     && apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-# LLVM/Clang 저장소 추가 및 설치
+# LLVM 20 저장소 추가 및 clang-20 설치
 RUN wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key | tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc && \
-    add-apt-repository -y "deb http://apt.llvm.org/noble/ llvm-toolchain-noble-18 main" && \
+    add-apt-repository -y "deb http://apt.llvm.org/noble/ llvm-toolchain-noble-20 main" && \
     apt-get update && \
-    apt-get install -y clang-18 libc++-18-dev libc++abi-18-dev && \
-    apt-get clean && \
+    apt-get install -y \
+    clang-20 \
+    llvm-20 \
+    libc++-20-dev \
+    libc++abi-20-dev \
+    libclang-rt-20-dev \
+    && apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-# Rust 설치 (stellar-core 빌드에 필요)
-RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+# Rust 설치 (cargo >= 1.74, rust >= 1.74 필요)
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain ${RUST_VERSION}
 ENV PATH="/root/.cargo/bin:${PATH}"
 
 # Go 설치 (horizon 빌드에 필요)
@@ -68,14 +79,14 @@ RUN useradd -r -m -s /bin/bash $DAEMONUSER && \
 VOLUME $DATADIR
 WORKDIR $WORKDIR
 
-# stellar-core 빌드
+# stellar-core 빌드 (공식 문서의 clang + libc++ 방식)
 RUN git clone --depth 1 --branch ${STELLAR_CORE_VERSION} https://github.com/stellar/stellar-core.git stellar-core-build && \
     cd stellar-core-build && \
     git submodule init && \
     git submodule update && \
     ./autogen.sh && \
-    export CC=clang-18 && \
-    export CXX=clang++-18 && \
+    export CC=clang-20 && \
+    export CXX=clang++-20 && \
     export CFLAGS="-O3 -g1 -fno-omit-frame-pointer" && \
     export CXXFLAGS="$CFLAGS -stdlib=libc++" && \
     ./configure --prefix=/usr/local && \

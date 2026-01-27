@@ -105,12 +105,16 @@ ENABLE=core,horizon,rpc,lab
 
 | 포트 | 서비스 | 설명 |
 |------|--------|------|
-| 8000 | Horizon, RPC, Lab, Friendbot | 메인 HTTP 포트 (외부 노출 가능) |
+| 8100 | Horizon, RPC, Lab, Friendbot | 메인 HTTP 포트 (외부 노출 가능, Solana와 충돌 방지) |
 | 11625 | stellar-core | P2P 네트워크 포트 |
 | 11626 | stellar-core | HTTP 관리 포트 (신뢰 네트워크만) |
-| 5432 | PostgreSQL | 데이터베이스 포트 (로컬호스트만) |
+| 5433 | PostgreSQL | 데이터베이스 포트 (로컬호스트만, Ethereum과 충돌 방지) |
 | 6060 | Horizon | 관리 포트 (선택사항) |
 | 6061 | RPC | 관리 포트 (선택사항) |
+
+**참고**: 
+- 호스트 포트 8100은 컨테이너 내부 포트 8000에 매핑됩니다
+- Solana(8000-8025)와 Ethereum PostgreSQL(5432)과의 충돌을 방지하기 위해 변경되었습니다
 
 ## 노드 상태 확인
 
@@ -131,16 +135,16 @@ docker-compose logs -f stellar | grep horizon
 
 ```bash
 # 최신 원장 조회
-curl http://localhost:8000/ledgers?limit=1&order=desc
+curl http://localhost:8100/ledgers?limit=1&order=desc
 
 # 계정 정보 조회
-curl http://localhost:8000/accounts/GACCOUNT...
+curl http://localhost:8100/accounts/GACCOUNT...
 
 # 트랜잭션 조회
-curl http://localhost:8000/transactions?limit=10
+curl http://localhost:8100/transactions?limit=10
 
 # Horizon 상태
-curl http://localhost:8000/
+curl http://localhost:8100/
 ```
 
 ### stellar-core HTTP API
@@ -160,12 +164,12 @@ curl http://localhost:11626/metrics
 
 ```bash
 # Health check
-curl -X POST http://localhost:8000/rpc \
+curl -X POST http://localhost:8100/rpc \
   -H "Content-Type: application/json" \
   -d '{"jsonrpc":"2.0","id":1,"method":"getHealth"}'
 
 # 최신 원장
-curl -X POST http://localhost:8000/rpc \
+curl -X POST http://localhost:8100/rpc \
   -H "Content-Type: application/json" \
   -d '{"jsonrpc":"2.0","id":1,"method":"getLatestLedger"}'
 ```
@@ -175,7 +179,7 @@ curl -X POST http://localhost:8000/rpc \
 웹 UI는 다음 주소에서 접근 가능합니다:
 
 ```
-http://localhost:8000/lab
+http://localhost:8100/lab
 ```
 
 Lab에서 다음을 수행할 수 있습니다:
@@ -190,7 +194,7 @@ Lab에서 다음을 수행할 수 있습니다:
 테스트넷에서 새 계정을 생성하려면:
 
 ```bash
-curl "http://localhost:8000/friendbot?addr=GACCOUNT..."
+curl "http://localhost:8100/friendbot?addr=GACCOUNT..."
 ```
 
 ## 데이터 관리
@@ -247,16 +251,16 @@ docker-compose exec stellar psql -U stellar -d horizon -c "SELECT 1"
 curl http://localhost:11626/info | jq '.info.state'
 
 # Horizon 동기화 상태
-curl http://localhost:8000/ | jq '.core_latest_ledger, .history_latest_ledger'
+curl http://localhost:8100/ | jq '.core_latest_ledger, .history_latest_ledger'
 ```
 
 ## 보안 권장사항
 
 1. **PostgreSQL 비밀번호**: 강력한 비밀번호 사용
 2. **포트 노출**: 
-   - 8000 포트는 외부 노출 가능 (Horizon은 인터넷 접근 가능하도록 설계됨)
+   - 8100 포트는 외부 노출 가능 (Horizon은 인터넷 접근 가능하도록 설계됨)
    - 11626 포트는 신뢰할 수 있는 네트워크에만 노출
-   - 5432 포트는 로컬호스트만 노출 (현재 설정)
+   - 5433 포트는 로컬호스트만 노출 (현재 설정)
 3. **방화벽**: 호스트 방화벽 설정
 4. **정기 업데이트**: 최신 이미지 태그 사용
 

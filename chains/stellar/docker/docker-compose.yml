@@ -13,13 +13,15 @@ services:
     command: ${NETWORK:-testnet}
     ports:
       # Horizon, RPC, Lab, Friendbot (메인 HTTP 포트)
-      - "0.0.0.0:8000:8000"
+      # ⚠️ Solana(8000-8025)와 충돌 방지를 위해 8100으로 변경
+      - "0.0.0.0:8100:8000"
       # stellar-core P2P 네트워크 포트
       - "11625:11625"
       # stellar-core HTTP 관리 포트 (신뢰할 수 있는 네트워크에만 노출 권장)
       - "127.0.0.1:11626:11626"
       # PostgreSQL 포트 (로컬호스트만 노출, 보안 중요)
-      - "127.0.0.1:5432:5432"
+      # ⚠️ Ethereum PostgreSQL과 충돌 방지를 위해 5433으로 변경
+      - "127.0.0.1:5433:5432"
       # Horizon 관리 포트 (선택사항)
       - "127.0.0.1:6060:6060"
       # RPC 관리 포트 (선택사항)

@@ -1,82 +1,59 @@
 version: '3.8'
 
 services:
-  postgres:
-    image: postgres:16
-    container_name: stellar-postgres
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER:-stellar}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-stellarpassword}
-      POSTGRES_DB: stellar_core
-    volumes:
-      - /mnt/cryptocur-data/stellar/postgres:/var/lib/postgresql/data
-    networks:
-      - stellar-network
-    ports:
-      - "127.0.0.1:5432:5432"
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U stellar"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
   stellar:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        GIT_VERSION: ${GIT_VERSION:-latest}
+    image: stellar/quickstart:latest
     container_name: stellar-node
     restart: unless-stopped
-    depends_on:
-      postgres:
-        condition: service_healthy
+    # 네트워크 모드: local, testnet, futurenet, pubnet
+    # local: 로컬 개발/테스트 네트워크 (빠른 원장 생성)
+    # testnet: Stellar 테스트 네트워크
+    # futurenet: 미래 프로토콜 변경 테스트 네트워크
+    # pubnet: Stellar 메인넷 (프로덕션)
+    command: ${NETWORK:-testnet}
     ports:
-      # stellar-core P2P network port (TCP/UDP)
+      # Horizon, RPC, Lab, Friendbot (메인 HTTP 포트)
+      - "0.0.0.0:8000:8000"
+      # stellar-core P2P 네트워크 포트
       - "11625:11625"
-      # stellar-core HTTP port (exposed to all interfaces for external access)
-      # ⚠️ 보안: 외부 접근이 필요할 때만 전체 노출, 방화벽으로 IP 제한 권장
-      - "0.0.0.0:11626:11626"
-      # horizon API port (exposed to all interfaces for external access)
-      # ⚠️ 보안: 외부 접근이 필요할 때만 전체 노출, 방화벽으로 IP 제한 권장
-      - "0.0.0.0:8100:8000"
+      # stellar-core HTTP 관리 포트 (신뢰할 수 있는 네트워크에만 노출 권장)
+      - "127.0.0.1:11626:11626"
+      # PostgreSQL 포트 (로컬호스트만 노출, 보안 중요)
+      - "127.0.0.1:5432:5432"
+      # Horizon 관리 포트 (선택사항)
+      - "127.0.0.1:6060:6060"
+      # RPC 관리 포트 (선택사항)
+      - "127.0.0.1:6061:6061"
     volumes:
-      # Persistent storage for blockchain data
+      # Persistent storage for Stellar data
       # IMPORTANT: Make sure /mnt/cryptocur-data/stellar directory exists and has proper permissions
       # Run: sudo mkdir -p /mnt/cryptocur-data/stellar
-      # Run: sudo chown -R 1000:1000 /mnt/cryptocur-data/stellar
-      - /mnt/cryptocur-data/stellar/core:/var/lib/stellar/core
-      - /mnt/cryptocur-data/stellar/horizon:/var/lib/stellar/horizon
+      # Run: sudo chown -R 10011001:10011001 /mnt/cryptocur-data/stellar
+      # Note: Quickstart uses UID 10011001 for stellar user
+      - /mnt/cryptocur-data/stellar:/opt/stellar
     environment:
-      # Network mode: public (default), testnet
-      NETWORK: ${NETWORK:-public}
-      # PostgreSQL connection
-      POSTGRES_HOST: postgres
-      POSTGRES_USER: ${POSTGRES_USER:-stellar}
+      # 네트워크 선택: local, testnet, futurenet, pubnet
+      NETWORK: ${NETWORK:-testnet}
+      # PostgreSQL 비밀번호 (persistent mode에서 필수)
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-stellarpassword}
-      # Core database
-      CORE_DB: stellar_core
-      # Horizon database
-      HORIZON_DB: stellar_horizon
-      # Horizon port
-      HORIZON_PORT: ${HORIZON_PORT:-8000}
-      # Enable ingestion
-      INGEST: ${INGEST:-true}
+      # 활성화할 서비스 (기본값: core,horizon,rpc)
+      # 옵션: core, horizon, rpc, lab, galexie
+      ENABLE: ${ENABLE:-core,horizon,rpc}
+      # 로그 활성화 (true/false)
+      ENABLE_LOGS: ${ENABLE_LOGS:-false}
+      # Core 로그 레벨 (FATAL, ERROR, WARNING, INFO, DEBUG, TRACE)
+      CORE_LOG_LEVEL: ${CORE_LOG_LEVEL:-}
+      # Core에서 PostgreSQL 사용 (기본값: SQLite)
+      CORE_USE_POSTGRES: ${CORE_USE_POSTGRES:-}
+      # 프로토콜 버전 (local 네트워크만)
+      PROTOCOL_VERSION: ${PROTOCOL_VERSION:-}
+      # 리소스 제한 (local 네트워크만: default, testnet, unlimited)
+      LIMITS: ${LIMITS:-testnet}
     networks:
       - stellar-network
     # Security options to fix permission denied issues in Snap Docker environment
     security_opt:
       - apparmor=unconfined
-    # Resource limits (optional)
-    # deploy:
-    #   resources:
-    #     limits:
-    #       cpus: '8'
-    #       memory: 16G
-    #     reservations:
-    #       cpus: '4'
-    #       memory: 8G
 
 networks:
   stellar-network:

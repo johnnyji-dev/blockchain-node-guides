@@ -1,185 +1,150 @@
 # Stellar 노드 Docker 가이드
 
-Docker를 사용하여 stellar-core (Core Node)와 horizon (API Server)를 통합 실행하는 방법입니다.
+Stellar 공식 Quickstart 이미지를 사용하여 Stellar 노드를 실행하는 방법입니다.
 
 ## 빠른 시작
 
-### 1. 데이터 디렉토리 준비
+### 1. 환경 변수 설정 (선택사항)
+
+```bash
+# .env 파일 복사
+cp .env.example .env
+
+# PostgreSQL 비밀번호 변경 (필수!)
+nano .env
+# POSTGRES_PASSWORD를 안전한 비밀번호로 변경
+```
+
+### 2. 데이터 디렉토리 준비
 
 ```bash
 # 데이터 디렉토리 생성
-sudo mkdir -p /mnt/cryptocur-data/stellar/{core,horizon,postgres}
+sudo mkdir -p /mnt/cryptocur-data/stellar
 
-# 권한 설정
-sudo chown -R 1000:1000 /mnt/cryptocur-data/stellar
+# 권한 설정 (Quickstart는 UID 10011001 사용)
+sudo chown -R 10011001:10011001 /mnt/cryptocur-data/stellar
 sudo chmod -R 755 /mnt/cryptocur-data/stellar
-```
-
-### 2. 환경 변수 설정 (선택사항)
-
-```bash
-# .env 파일 생성 (선택사항)
-cat > .env << EOF
-# 네트워크 모드: public (기본값), testnet
-NETWORK=public
-
-# PostgreSQL 설정
-POSTGRES_USER=stellar
-POSTGRES_PASSWORD=changeme_strong_password
-
-# Horizon 설정
-HORIZON_PORT=8000
-INGEST=true
-EOF
 ```
 
 ### 3. Docker Compose로 실행
 
 ```bash
-# 이미지 빌드 및 컨테이너 시작 (최초 빌드는 30-60분 소요)
-docker compose up -d
+# 테스트넷 노드 시작 (기본값)
+docker-compose up -d
+
+# 또는 특정 네트워크 지정
+NETWORK=pubnet docker-compose up -d
 
 # 로그 확인
-docker compose logs -f stellar
+docker-compose logs -f
+```
 
+## 네트워크 선택
+
+### Testnet (기본값, 권장)
+```bash
+NETWORK=testnet docker-compose up -d
+```
+- 개발 및 테스트용 네트워크
+- 동기화 시간: 수 시간
+- 디스크 요구사항: ~50GB
+
+### Pubnet (메인넷)
+```bash
+NETWORK=pubnet docker-compose up -d
+```
+- 실제 거래가 이루어지는 네트워크
+- 동기화 시간: 2-7일
+- 디스크 요구사항: ~1TB
+- ⚠️ 많은 리소스 필요
+
+### Local (로컬 개발)
+```bash
+NETWORK=local docker-compose up -d
+```
+- 로컬 개발/테스트 네트워크
+- 원장 생성: 1초마다
+- 빠른 테스트에 적합
+
+### Futurenet
+```bash
+NETWORK=futurenet docker-compose up -d
+```
+- 미래 프로토콜 변경 테스트 네트워크
+
+## 서비스 구성
+
+Quickstart 이미지는 다음 서비스를 포함합니다:
+
+- **stellar-core**: 블록체인 코어 노드
+- **stellar-horizon**: REST API 서버
+- **stellar-rpc**: RPC 서버 (Soroban 스마트 컨트랙트용)
+- **friendbot**: 테스트넷 계정 생성용 Faucet
+- **lab**: Stellar Lab 웹 UI
+- **galexie**: 원장 메타 익스포터 (local 네트워크만)
+
+### 서비스 활성화/비활성화
+
+`.env` 파일에서 `ENABLE` 변수로 제어:
+
+```bash
+# 모든 주요 서비스 (기본값)
+ENABLE=core,horizon,rpc
+
+# RPC만
+ENABLE=rpc
+
+# Core와 Horizon만
+ENABLE=core,horizon
+
+# Lab 포함
+ENABLE=core,horizon,rpc,lab
+```
+
+## 포트
+
+| 포트 | 서비스 | 설명 |
+|------|--------|------|
+| 8000 | Horizon, RPC, Lab, Friendbot | 메인 HTTP 포트 (외부 노출 가능) |
+| 11625 | stellar-core | P2P 네트워크 포트 |
+| 11626 | stellar-core | HTTP 관리 포트 (신뢰 네트워크만) |
+| 5432 | PostgreSQL | 데이터베이스 포트 (로컬호스트만) |
+| 6060 | Horizon | 관리 포트 (선택사항) |
+| 6061 | RPC | 관리 포트 (선택사항) |
+
+## 노드 상태 확인
+
+### 컨테이너 상태
+
+```bash
 # 컨테이너 상태 확인
-docker compose ps
+docker ps | grep stellar
+
+# 컨테이너 로그 확인
+docker-compose logs -f
+
+# 특정 서비스 로그만
+docker-compose logs -f stellar | grep horizon
 ```
 
-### 4. 노드 상태 확인
+### Horizon API
 
 ```bash
-# stellar-core 상태 확인
-curl http://localhost:11626/info
-
-# stellar-core 동기화 상태
-docker compose exec stellar stellar-core --conf /opt/stellar/stellar-core.cfg http-command 'info'
-
-# Horizon API 확인
-curl http://localhost:8000/
-
-# Horizon 동기화 상태
+# 최신 원장 조회
 curl http://localhost:8000/ledgers?limit=1&order=desc
+
+# 계정 정보 조회
+curl http://localhost:8000/accounts/GACCOUNT...
+
+# 트랜잭션 조회
+curl http://localhost:8000/transactions?limit=10
+
+# Horizon 상태
+curl http://localhost:8000/
 ```
-
-## 파일 구조
-
-```
-docker/
-├── Dockerfile              # Docker 이미지 빌드 파일
-├── docker-compose.yml      # Docker Compose 설정
-├── launcher.sh             # stellar-core와 horizon 실행 스크립트
-├── stellar-core.cfg        # stellar-core 설정 템플릿
-├── docker-readme.md        # 상세 가이드
-└── README.md               # 이 파일
-```
-
-## Stellar 노드 구성
-
-이 Docker 설정은 **stellar-core (Core Node)**, **horizon (API Server)**, **PostgreSQL (Database)**를 모두 포함하는 통합 노드입니다.
-
-### stellar-core
-- **공식 릴리스**: [https://github.com/stellar/stellar-core/releases](https://github.com/stellar/stellar-core/releases)
-- **버전**: v22.0.0
-- **역할**: 블록체인 합의, P2P 네트워크, 트랜잭션 검증
-- **포트**: 
-  - 11625: P2P 네트워크
-  - 11626: HTTP (관리용 API)
-
-### horizon
-- **공식 릴리스**: [https://github.com/stellar/go/releases](https://github.com/stellar/go/releases)
-- **버전**: v2.32.0
-- **역할**: REST API 서버, 데이터 조회
-- **포트**:
-  - 8000: HTTP API
-
-### PostgreSQL
-- **버전**: 16
-- **역할**: stellar-core와 horizon 데이터 저장
-- **포트**:
-  - 5432: PostgreSQL (localhost만)
-
-## 환경 변수
-
-### 필수 변수
-없음 (모든 변수에 기본값이 설정되어 있습니다)
-
-### 선택 변수
-- `NETWORK`: 네트워크 모드
-  - `public` (기본값): 메인넷
-  - `testnet`: 테스트넷
-- `POSTGRES_USER`: PostgreSQL 사용자 (기본값: stellar)
-- `POSTGRES_PASSWORD`: PostgreSQL 비밀번호 (기본값: stellarpassword)
-- `HORIZON_PORT`: Horizon API 포트 (기본값: 8000)
-- `INGEST`: Horizon 데이터 수집 활성화 (기본값: true)
-
-## 데이터 저장
-
-블록체인 데이터는 `/mnt/cryptocur-data/stellar` 디렉토리에 저장됩니다.
-
-### 디스크 요구사항
-- **메인넷**: 
-  - stellar-core: ~200GB (2024년 기준)
-  - horizon: ~500GB (전체 히스토리)
-  - PostgreSQL: ~100GB
-  - 권장 여유 공간: 1TB 이상
-- **테스트넷**: ~50GB
-
-## 네트워크 모드
-
-### 메인넷 (기본값)
-```bash
-docker compose up -d
-# 또는
-NETWORK=public docker compose up -d
-```
-
-### 테스트넷
-```bash
-NETWORK=testnet docker compose up -d
-```
-
-## 노드 관리
-
-### 로그 확인
-```bash
-# 전체 로그
-docker compose logs -f
-
-# stellar-core 로그만
-docker compose logs -f stellar | grep -i stellar-core
-
-# horizon 로그만
-docker compose logs -f stellar | grep -i horizon
-
-# PostgreSQL 로그
-docker compose logs -f postgres
-```
-
-### 노드 중지
-```bash
-docker compose stop
-```
-
-### 노드 재시작
-```bash
-docker compose restart
-```
-
-### 노드 제거 (데이터 유지)
-```bash
-docker compose down
-```
-
-### 노드 제거 (데이터 삭제)
-```bash
-docker compose down -v
-sudo rm -rf /mnt/cryptocur-data/stellar
-```
-
-## API 사용 예시
 
 ### stellar-core HTTP API
+
 ```bash
 # 노드 정보
 curl http://localhost:11626/info
@@ -191,101 +156,114 @@ curl http://localhost:11626/peers
 curl http://localhost:11626/metrics
 ```
 
-### Horizon REST API
+### RPC API
+
 ```bash
-# 최신 원장(ledger) 조회
-curl http://localhost:8000/ledgers?limit=1&order=desc
+# Health check
+curl -X POST http://localhost:8000/rpc \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"getHealth"}'
 
-# 계정 조회
-curl http://localhost:8000/accounts/{account_id}
-
-# 트랜잭션 조회
-curl http://localhost:8000/transactions?limit=10
-
-# 자산 조회
-curl http://localhost:8000/assets
+# 최신 원장
+curl -X POST http://localhost:8000/rpc \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"getLatestLedger"}'
 ```
 
-## 동기화 시간
+## Stellar Lab
 
-- **메인넷 전체 동기화**: 
-  - stellar-core: 2-7일 (하드웨어 성능에 따라)
-  - horizon ingestion: stellar-core 동기화 완료 후 1-3일
-- **테스트넷**: 수 시간 ~ 1일
+웹 UI는 다음 주소에서 접근 가능합니다:
 
-## 보안 주의사항
-
-1. **포트 노출**: 
-   - RPC 포트(11626, 8000)는 localhost로만 노출
-   - P2P 포트(11625)만 외부에 노출
-2. **PostgreSQL 비밀번호**: 
-   - 기본 비밀번호를 반드시 변경하세요
-3. **방화벽**: 
-   - P2P 포트(11625)만 외부 개방
-   - RPC 포트는 필요시 SSH 터널 사용
-4. **정기 업데이트**: 
-   - stellar-core와 horizon 최신 버전 유지
-
-## 외부 접근 설정
-
-외부에서 Horizon API에 접근하려면:
-
-### 1) docker-compose.yml 포트 변경
-```yaml
-# 127.0.0.1:8000:8000 -> 0.0.0.0:8000:8000
-- "8000:8000"
+```
+http://localhost:8000/lab
 ```
 
-### 2) 방화벽 설정 (UFW)
+Lab에서 다음을 수행할 수 있습니다:
+- 계정 생성 및 관리
+- 트랜잭션 생성 및 서명
+- Horizon API 테스트
+- RPC API 테스트
+- Friendbot으로 계정 자금 조달
+
+## Friendbot (테스트넷/퓨처넷)
+
+테스트넷에서 새 계정을 생성하려면:
+
 ```bash
-# 특정 IP만 허용
-sudo ufw allow from 203.0.113.10 to any port 8000
-
-# 또는 전체 개방 (보안 위험)
-sudo ufw allow 8000
+curl "http://localhost:8000/friendbot?addr=GACCOUNT..."
 ```
 
-### 3) 연결 테스트
-```bash
-# 외부 서버에서
-curl http://<노드_공인IP>:8000/
-```
+## 데이터 관리
+
+### Persistent Mode
+
+볼륨 마운트(`/mnt/cryptocur-data/stellar:/opt/stellar`)를 사용하면:
+- 모든 데이터가 호스트에 저장됨
+- 컨테이너 재시작 후에도 데이터 유지
+- 설정 파일 수정 가능
+
+### Ephemeral Mode
+
+볼륨을 마운트하지 않으면:
+- 컨테이너 종료 시 모든 데이터 삭제
+- 개발/테스트에 적합
 
 ## 문제 해결
 
-### stellar-core가 시작되지 않는 경우
+### 컨테이너가 시작되지 않음
+
 ```bash
 # 로그 확인
-docker compose logs stellar
+docker-compose logs stellar
 
-# 데이터베이스 재초기화
-docker compose exec stellar rm /var/lib/stellar/core/.initialized
-docker compose restart stellar
-```
-
-### horizon이 시작되지 않는 경우
-```bash
-# 데이터베이스 재초기화
-docker compose exec stellar rm /var/lib/stellar/horizon/.initialized
-docker compose restart stellar
+# 컨테이너 재시작
+docker-compose restart stellar
 ```
 
 ### 디스크 공간 부족
-```bash
-# 사용량 확인
-du -sh /mnt/cryptocur-data/stellar/*
 
-# 오래된 PostgreSQL 로그 정리
-docker compose exec postgres bash -c "find /var/lib/postgresql/data/log -name '*.log' -mtime +7 -delete"
+```bash
+# 데이터 디렉토리 크기 확인
+du -sh /mnt/cryptocur-data/stellar
+
+# 디렉토리별 크기 확인
+du -h --max-depth=1 /mnt/cryptocur-data/stellar | sort -hr
 ```
 
-## 상세 가이드
+### PostgreSQL 연결 오류
 
-자세한 내용은 [docker-readme.md](./docker-readme.md)를 참고하세요.
+```bash
+# PostgreSQL 상태 확인
+docker-compose exec stellar psql -U stellar -d horizon -c "SELECT 1"
 
-## 참고 자료
+# 비밀번호 확인
+# .env 파일의 POSTGRES_PASSWORD 확인
+```
 
+### 동기화 문제
+
+```bash
+# Core 상태 확인
+curl http://localhost:11626/info | jq '.info.state'
+
+# Horizon 동기화 상태
+curl http://localhost:8000/ | jq '.core_latest_ledger, .history_latest_ledger'
+```
+
+## 보안 권장사항
+
+1. **PostgreSQL 비밀번호**: 강력한 비밀번호 사용
+2. **포트 노출**: 
+   - 8000 포트는 외부 노출 가능 (Horizon은 인터넷 접근 가능하도록 설계됨)
+   - 11626 포트는 신뢰할 수 있는 네트워크에만 노출
+   - 5432 포트는 로컬호스트만 노출 (현재 설정)
+3. **방화벽**: 호스트 방화벽 설정
+4. **정기 업데이트**: 최신 이미지 태그 사용
+
+## 추가 리소스
+
+- [Stellar Quickstart GitHub](https://github.com/stellar/quickstart)
 - [Stellar 공식 문서](https://developers.stellar.org/)
-- [stellar-core GitHub](https://github.com/stellar/stellar-core)
-- [horizon GitHub](https://github.com/stellar/go/tree/master/services/horizon)
-- [Stellar Dashboard](https://dashboard.stellar.org/)
+- [Horizon API 문서](https://developers.stellar.org/api)
+- [RPC API 문서](https://developers.stellar.org/docs/data/rpc)
+- [Stellar Lab](https://lab.stellar.org)

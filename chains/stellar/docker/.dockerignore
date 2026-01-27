@@ -1,28 +1,27 @@
 # Git
 .git
-.gitignore
+.github
 
 # Documentation
 *.md
-README*
-docs/
+README.md
 
-# Docker
-docker-compose*.yml
-.dockerignore
-
-# Environment
+# Environment files
 .env
-.env.*
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
+.env.local
 
 # Logs
 *.log
+
+# Data directories (should be mounted as volumes)
+data/
+/mnt/cryptocur-data/
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
 
 # OS
 .DS_Store

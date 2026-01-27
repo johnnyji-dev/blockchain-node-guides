@@ -1,4 +1,4 @@
-version: '3.8'
+# version은 더 이상 필요하지 않습니다 (Docker Compose v2)
 
 services:
   stellar:
@@ -10,7 +10,8 @@ services:
     # testnet: Stellar 테스트 네트워크
     # futurenet: 미래 프로토콜 변경 테스트 네트워크
     # pubnet: Stellar 메인넷 (프로덕션)
-    command: ${NETWORK:-testnet}
+    # Quickstart 이미지는 --플래그 형식을 기대합니다
+    command: --${NETWORK:-testnet}
     ports:
       # Horizon, RPC, Lab, Friendbot (메인 HTTP 포트)
       # ⚠️ Solana(8000-8025)와 충돌 방지를 위해 8100으로 변경
@@ -50,7 +51,7 @@ services:
       # 프로토콜 버전 (local 네트워크만)
       PROTOCOL_VERSION: ${PROTOCOL_VERSION:-}
       # 리소스 제한 (local 네트워크만: default, testnet, unlimited)
-      LIMITS: ${LIMITS:-testnet}
+      # LIMITS: ${LIMITS:-testnet}
     networks:
       - stellar-network
     # Security options to fix permission denied issues in Snap Docker environment

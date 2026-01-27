@@ -11,6 +11,7 @@ services:
       POSTGRES_DB: stellar_core
     volumes:
       - /mnt/cryptocur-data/stellar/postgres:/var/lib/postgresql/data
+      - ./init-db.sh:/docker-entrypoint-initdb.d/init-db.sh:ro
     networks:
       - stellar-network
     ports:
@@ -42,11 +43,26 @@ services:
     security_opt:
       - apparmor=unconfined
 
+  horizon-db-init:
+    image: stellar/stellar-horizon:latest
+    container_name: stellar-horizon-db-init
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: "postgres://${POSTGRES_USER:-stellar}:${POSTGRES_PASSWORD:-stellarpassword}@postgres/stellar_horizon?sslmode=disable"
+    command: ["db", "migrate", "up"]
+    networks:
+      - stellar-network
+    restart: "no"
+
   horizon:
     image: stellar/stellar-horizon:latest
     container_name: stellar-horizon
     restart: unless-stopped
     depends_on:
+      horizon-db-init:
+        condition: service_completed_successfully
       stellar-core:
         condition: service_started
       postgres:
@@ -66,7 +82,6 @@ services:
       LOG_LEVEL: "info"
       # Captive core 설정
       CAPTIVE_CORE_CONFIG_PATH: "/stellar-core.cfg"
-      ENABLE_CAPTIVE_CORE_INGESTION: "true"
     networks:
       - stellar-network
     security_opt:

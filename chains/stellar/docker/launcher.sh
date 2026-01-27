@@ -46,18 +46,17 @@ PGPASSWORD=$POSTGRES_PASSWORD psql -h "$POSTGRES_HOST" -U "$POSTGRES_USER" -d po
 
 # stellar-core 설정 파일 생성
 echo "Generating stellar-core configuration..."
-cat > $WORKDIR/stellar-core.cfg << EOF
+cat > $WORKDIR/stellar-core.cfg << 'EOF'
 # Stellar Core Configuration
 
-# Database connection
-DATABASE="postgresql://dbname=$CORE_DB host=$POSTGRES_HOST user=$POSTGRES_USER password=$POSTGRES_PASSWORD"
+DATABASE="postgresql://dbname=stellar_core host=postgres user=stellar password=stellarpassword"
 
 # HTTP port for commands
 HTTP_PORT=11626
 PUBLIC_HTTP_PORT=true
 
 # Network settings
-NETWORK_PASSPHRASE="$NETWORK_PASSPHRASE"
+NETWORK_PASSPHRASE="Public Global Stellar Network ; September 2015"
 
 # Peer port
 PEER_PORT=11625
@@ -67,13 +66,14 @@ NODE_IS_VALIDATOR=false
 
 # Quorum set (using SDF validators for public network)
 [QUORUM_SET]
-THRESHOLD_PERCENT=51
+THRESHOLD_PERCENT=67
 VALIDATORS=[
-  "\$sdf_1",
-  "\$sdf_2",
-  "\$sdf_3"
+"$sdf1",
+"$sdf2", 
+"$sdf3"
 ]
 
+# History archives
 [HISTORY.sdf1]
 get="curl -sf https://history.stellar.org/prd/core-live/core_live_001/{0} -o {1}"
 
@@ -83,25 +83,39 @@ get="curl -sf https://history.stellar.org/prd/core-live/core_live_002/{0} -o {1}
 [HISTORY.sdf3]
 get="curl -sf https://history.stellar.org/prd/core-live/core_live_003/{0} -o {1}"
 
-# Home domain for validators
-[\$sdf_1]
-HOME_DOMAIN="validator1.stellar.org"
-QUALITY="HIGH"
+# SDF Validators
+[VALIDATOR."$sdf1"]
+NAME="sdf1"
+HOME_DOMAIN="www.stellar.org"
+PUBLIC_KEY="GCGB2S2KGYARPVIA37HYZXVRM2YZUEXA6S33ZU5BUDC6THSB62LZSTYH"
+ADDRESS="core-live-a.stellar.org"
+HISTORY="curl -sf https://history.stellar.org/prd/core-live/core_live_001/{0} -o {1}"
 
-[\$sdf_2]
-HOME_DOMAIN="validator2.stellar.org"
-QUALITY="HIGH"
+[VALIDATOR."$sdf2"]
+NAME="sdf2"
+HOME_DOMAIN="www.stellar.org"
+PUBLIC_KEY="GCM6QMP3DLRPTAZW2UZPCPX2LF3SXWXKPMP3GKFZBDSF3QZGV2G5QSTK"
+ADDRESS="core-live-b.stellar.org"
+HISTORY="curl -sf https://history.stellar.org/prd/core-live/core_live_002/{0} -o {1}"
 
-[\$sdf_3]
-HOME_DOMAIN="validator3.stellar.org"
-QUALITY="HIGH"
+[VALIDATOR."$sdf3"]
+NAME="sdf3"
+HOME_DOMAIN="www.stellar.org"
+PUBLIC_KEY="GABMKJM6I25XI4K7U6XWMULOUQIQ27BCTMLS6BYYSOWKTBUXVRJSXHYQ"
+ADDRESS="core-live-c.stellar.org"
+HISTORY="curl -sf https://history.stellar.org/prd/core-live/core_live_003/{0} -o {1}"
 
 # Logging
 LOG_FILE_PATH=""
 
 # Data directory
-BUCKET_DIR_PATH="$DATADIR/core/buckets"
+BUCKET_DIR_PATH="/var/lib/stellar/core/buckets"
 EOF
+
+# 환경 변수로 대체
+sed -i "s|stellar_core|$CORE_DB|g" $WORKDIR/stellar-core.cfg
+sed -i "s|postgres user=stellar password=stellarpassword|$POSTGRES_HOST user=$POSTGRES_USER password=$POSTGRES_PASSWORD|g" $WORKDIR/stellar-core.cfg
+sed -i "s|Public Global Stellar Network ; September 2015|$NETWORK_PASSPHRASE|g" $WORKDIR/stellar-core.cfg
 
 # 폴더 권한 설정
 chown -R $DAEMONUSER:$DAEMONUSER $WORKDIR $DATADIR 2>/dev/null || true

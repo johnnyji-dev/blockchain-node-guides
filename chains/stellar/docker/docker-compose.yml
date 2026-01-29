@@ -15,6 +15,7 @@ services:
     ports:
       # Horizon, RPC, Lab, Friendbot (메인 HTTP 포트)
       # ⚠️ Solana(8000-8025)와 충돌 방지를 위해 8100으로 변경
+      # 참고: 포트 번호는 응답 속도와 무관함. 느리면 동기화 상태·메모리·디스크 확인
       - "0.0.0.0:8100:8000"
       # stellar-core P2P 네트워크 포트
       - "11625:11625"
@@ -54,9 +55,20 @@ services:
       # LIMITS: ${LIMITS:-testnet}
     networks:
       - stellar-network
+    # Shared memory: PostgreSQL·Horizon 성능에 도움 (기본 64MB → 512MB)
+    shm_size: '512mb'
     # Security options to fix permission denied issues in Snap Docker environment
     security_opt:
       - apparmor=unconfined
+    # 리소스 예약 (응답 속도 개선: 메모리 부족 시 느려짐)
+    # Swarm 미사용 시 deploy는 무시됨. 호스트 메모리 여유 있으면 아래 주석 해제 후
+    # docker stack deploy 또는 docker compose --compatibility 사용
+    # deploy:
+    #   resources:
+    #     limits:
+    #       memory: 4G
+    #     reservations:
+    #       memory: 2G
 
 networks:
   stellar-network:

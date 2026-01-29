@@ -254,6 +254,149 @@ curl http://localhost:11626/info | jq '.info.state'
 curl http://localhost:8100/ | jq '.core_latest_ledger, .history_latest_ledger'
 ```
 
+## 응답 속도 / 성능
+
+**포트 번호(8100 등)는 응답 속도와 무관합니다.** 느릴 때 확인할 것:
+
+### 1. 동기화 상태
+동기화 중이면 Horizon/RPC 응답이 느리거나 불안정할 수 있습니다.
+
+```bash
+# 동기화 완료 여부 확인
+curl -s http://localhost:8100/ | jq '.core_latest_ledger == .history_latest_ledger'
+# true면 동기화 완료
+```
+
+### 2. 컨테이너 설정 (이미 반영)
+- **shm_size: 512mb** – PostgreSQL·Horizon용 공유 메모리 확대 (기본 64MB → 512MB). 적용 후 재시작:
+  ```bash
+  docker-compose down && docker-compose up -d
+  ```
+
+### 3. 호스트 리소스 확인 명령어
+
+응답 속도 개선을 위해 아래 순서로 확인하세요.
+
+#### 메모리 (RAM)
+
+```bash
+# 전체 메모리 및 사용량
+free -h
+
+# 상세: 사용 가능 메모리(available)가 2GB 미만이면 부족
+free -h && echo "---" && cat /proc/meminfo | grep -E "MemTotal|MemFree|MemAvailable"
+```
+
+- **권장**: Stellar만 돌릴 때 최소 8GB, pubnet 16GB+
+- **available** 이 계속 적으면 스왑/디스크 I/O 증가로 느려짐
+
+#### CPU
+
+```bash
+# CPU 코어 수
+nproc
+
+# 실시간 부하 (1/5/15분 평균, 1.0 = 1코어 100%)
+uptime
+
+# 프로세스별 CPU 사용률 (q 종료)
+top -b -n 1 | head -20
+# 또는
+htop
+```
+
+- **권장**: 최소 4코어, pubnet 8코어+
+- `load average` 가 코어 수보다 크게 유지되면 CPU 병목
+
+#### 디스크 용량 및 사용량
+
+```bash
+# Stellar 데이터 경로 용량
+df -h /mnt/cryptocur-data/stellar
+
+# 전체 디스크
+df -h
+
+# Stellar 데이터 디렉터리 크기
+du -sh /mnt/cryptocur-data/stellar
+du -h --max-depth=1 /mnt/cryptocur-data/stellar 2>/dev/null | sort -hr | head -10
+```
+
+- **권장**: 여유 공간 20% 이상 (testnet ~50GB, pubnet ~1TB)
+- **부족 시**: 동기화 실패·재시도·느린 DB 쓰기로 응답 지연
+
+#### 디스크가 SSD인지 여부 (I/O 속도)
+
+```bash
+# 디스크 모델·타입 (SSD면 "SSD" 또는 "NVMe" 등으로 표기)
+lsblk -d -o NAME,MODEL,SIZE,ROTA
+# ROTA=0 → SSD, ROTA=1 → HDD
+
+# Stellar 볼륨이 있는 디스크 확인
+df /mnt/cryptocur-data/stellar | tail -1 | awk '{print $1}' | xargs lsblk -d -o NAME,MODEL,ROTA -n
+```
+
+- **ROTA 0**: SSD (빠름), **ROTA 1**: HDD (DB 부하 시 느림)
+
+#### 디스크 I/O 부하
+
+```bash
+# I/O 대기·사용률 (설치 필요: sudo apt install iotop)
+sudo iotop -b -n 3 -o
+
+# 간단 확인: 디스크 쓰기 대기 시간
+iostat -x 1 3 2>/dev/null || (echo "sysstat 필요: sudo apt install sysstat")
+```
+
+- **%util** 이 90% 근처로 오래 유지되면 디스크 병목
+
+#### Docker 컨테이너 리소스 사용량
+
+```bash
+# Stellar 컨테이너 CPU/메모리 실시간
+docker stats stellar-node --no-stream
+
+# 모든 컨테이너
+docker stats --no-stream
+```
+
+- Stellar가 메모리를 거의 다 쓰거나, 다른 컨테이너가 CPU/메모리를 많이 쓰면 Stellar 응답이 느려질 수 있음
+
+#### 한 번에 점검하는 요약 스크립트
+
+```bash
+echo "=== 메모리 ===" && free -h
+echo "" && echo "=== CPU 코어 / 부하 ===" && nproc && uptime
+echo "" && echo "=== Stellar 디스크 ===" && df -h /mnt/cryptocur-data/stellar
+echo "" && echo "=== 디스크 타입(ROTA 0=SSD) ===" && lsblk -d -o NAME,MODEL,SIZE,ROTA
+echo "" && echo "=== Stellar 컨테이너 리소스 ===" && docker stats stellar-node --no-stream
+echo "" && echo "=== 동기화 상태 ===" && curl -s http://localhost:8100/ | jq '{core: .core_latest_ledger, history: .history_latest_ledger, synced: (.core_latest_ledger == .history_latest_ledger)}'
+```
+
+#### 정리: 확인 포인트
+
+| 확인 항목 | 명령어 | 권장/주의 |
+|----------|--------|-----------|
+| 메모리 여유 | `free -h` | available 2GB+ |
+| CPU 부하 | `uptime` | load average < 코어 수 |
+| 디스크 여유 | `df -h /mnt/cryptocur-data/stellar` | 여유 20%+ |
+| SSD 여부 | `lsblk -d -o NAME,ROTA` | ROTA=0 (SSD) |
+| 컨테이너 사용량 | `docker stats stellar-node --no-stream` | 메모리 여유 확인 |
+| 동기화 완료 | `curl -s localhost:8100/ \| jq .core_latest_ledger,.history_latest_ledger` | 두 값 같으면 동기화 완료 |
+
+### 4. 컨테이너 메모리 제한 완화 (선택)
+호스트에 메모리 여유가 있으면 컨테이너에 더 할당:
+
+```bash
+# 실행 중인 컨테이너에 메모리 제한 설정 (예: 4GB)
+docker update --memory 4g stellar-node
+```
+
+### 5. 다른 노드와 리소스 경쟁
+Bitcoin, Ethereum, Solana 등이 같은 서버에서 돌면 CPU/메모리/디스크를 나눠 쓰므로, Stellar만 느리다면 다른 컨테이너 리소스를 줄이거나 Stellar 전용 메모리를 늘려보세요.
+
+---
+
 ## 보안 권장사항
 
 1. **PostgreSQL 비밀번호**: 강력한 비밀번호 사용

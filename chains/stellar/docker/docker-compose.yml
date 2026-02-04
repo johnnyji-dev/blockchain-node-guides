@@ -61,14 +61,13 @@ services:
     security_opt:
       - apparmor=unconfined
     # 리소스 예약 (응답 속도 개선: 메모리 부족 시 느려짐)
-    # Swarm 미사용 시 deploy는 무시됨. 호스트 메모리 여유 있으면 아래 주석 해제 후
-    # docker stack deploy 또는 docker compose --compatibility 사용
-    # deploy:
-    #   resources:
-    #     limits:
-    #       memory: 4G
-    #     reservations:
-    #       memory: 2G
+    # socket hang up 방지를 위해 충분한 메모리 할당
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+        reservations:
+          memory: 2G
 
 networks:
   stellar-network:
